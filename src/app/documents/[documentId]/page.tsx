@@ -1,16 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import PdfViewer from "@/components/pdf_viewer";
 
 type DocumentPageProps = {
   params: Promise<{
     documentId: string;
   }>;
 };
-
-// type DocumentMetadata = {
-//   documentId: string;
-//   originalName: string;
-//   storedFilename: string;
-// };
 
 export default async function DocumentPage({ params }: DocumentPageProps) {
   const { documentId } = await params;
@@ -33,6 +28,7 @@ export default async function DocumentPage({ params }: DocumentPageProps) {
       <h1>Document: {document.originalName}</h1>
       <p>Document ID: {document.id}</p>
       <p>Stored Filename: {document.storedFilename}</p>
+      <PdfViewer fileUrl={`/api/documents/${document.id}/file`} />
     </main>
   );
 }
