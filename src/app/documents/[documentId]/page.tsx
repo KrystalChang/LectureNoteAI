@@ -1,35 +1,37 @@
+import { prisma } from "@/lib/prisma";
+
 type DocumentPageProps = {
   params: Promise<{
     documentId: string;
   }>;
 };
 
-type DocumentMetadata = {
-  documentId: string;
-  originalName: string;
-  storedFilename: string;
-};
-
-async function getDocument(documentId: string): Promise<DocumentMetadata> {
-  const res = await fetch(`http://localhost:3000/api/documents/${documentId}`, {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch document metadata");
-  }
-
-  return res.json();
-}
+// type DocumentMetadata = {
+//   documentId: string;
+//   originalName: string;
+//   storedFilename: string;
+// };
 
 export default async function DocumentPage({ params }: DocumentPageProps) {
   const { documentId } = await params;
-  const document = await getDocument(documentId);
+
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+  });
+
+  if (!document) {
+    return (
+      <main style={{ padding: 40 }}>
+        <h1>Document not found</h1>
+        <p>No document found with ID: {documentId}</p>
+      </main>
+    );
+  }
 
   return (
     <main style={{ padding: 40 }}>
       <h1>Document: {document.originalName}</h1>
-      <p>Document ID: {document.documentId}</p>
+      <p>Document ID: {document.id}</p>
       <p>Stored Filename: {document.storedFilename}</p>
     </main>
   );

@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<any>(null);
+  // const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+
+  const route = useRouter();
 
   async function handleUpload() {
     if (!file) {
@@ -33,7 +36,7 @@ export default function UploadPage() {
         return;
       }
 
-      setResult(data);
+      route.push(`/documents/${data.documentId}`);
     } catch (err) {
       setError("Something went wrong.");
     } finally {
@@ -50,7 +53,6 @@ export default function UploadPage() {
         accept="application/pdf"
         onChange={(e) => {
           setFile(e.target.files?.[0] ?? null);
-          setResult(null);
           setError("");
         }}
       />
@@ -60,15 +62,6 @@ export default function UploadPage() {
       </button>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
-
-      {result && (
-        <div>
-          <p>Upload successful!</p>
-          <p>Document ID: {result.documentId}</p>
-          <p>Original Name: {result.originalName}</p>
-          <p>Stored Filename: {result.storedFilename}</p>
-        </div>
-      )}
     </main>
   );
 }
