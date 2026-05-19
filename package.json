@@ -12,6 +12,7 @@
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
     "next": "16.2.4",
+    "pdfjs-dist": "^5.4.296",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",

@@ -14,4 +14,18 @@ model Document {
   filePath       String
   totalPages     Int?
   uploadedAt     DateTime @default(now())
+
+  pages          PageContent[]
+}
+
+model PageContent {
+  id            String   @id @default(uuid())
+  documentId    String
+  pageNumber    Int
+  extractedText String
+  summary       String?
+
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, pageNumber])
 }

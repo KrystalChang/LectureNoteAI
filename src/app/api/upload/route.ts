@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
+import { extractPageTexts } from "@/lib/pdf";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -40,11 +41,20 @@ export async function POST(request: Request) {
 
     await fs.writeFile(filePath, buffer);
 
+    const { pageCount, texts } = await extractPageTexts(buffer);
+
     const document = await prisma.document.create({
       data: {
         originalName: file.name,
         storedFilename: filename,
         filePath,
+        totalPages: pageCount,
+        pages: {
+          create: texts.map((extractedText, index) => ({
+            pageNumber: index + 1,
+            extractedText,
+          })),
+        },
       },
     });
 
@@ -52,6 +62,8 @@ export async function POST(request: Request) {
       documentId: document.id,
       originalName: document.originalName,
       storedFilename: document.storedFilename,
+      totalPages: document.totalPages,
+      extractedTexts: texts,
     });
   } catch (error) {
     console.error(error);
