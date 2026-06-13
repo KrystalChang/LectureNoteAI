@@ -1,24 +1,36 @@
 import { Anthropic } from "@anthropic-ai/sdk";
+import { SUMMARY_SYSTEM_PROMPT } from "./prompts/summary";
 
 const client = new Anthropic({
   apiKey: process.env["ANTHROPIC_API_KEY"],
   baseURL: process.env["ANTHROPIC_BASE_URL"],
 });
 
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+
 export async function summaryOnePage(pageText: string) {
   const message = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL || "claude-4.6-sonnet",
+    model: MODEL,
     max_tokens: 1024,
+    // Mark the system prompt as cacheable — it's identical for every page,
+    // so after the first call subsequent ones read it from cache (~10% cost).
+    system: [
+      {
+        type: "text",
+        text: SUMMARY_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [
       {
         role: "user",
-        content: `你是一位學術助理。請根據以下講義頁面內容，產生 3 到 5 個重點摘要。使用繁體中文，用條列式（bullet points）呈現。
-          只根據提供的內容摘要，不要添加額外資訊。頁面內容：${pageText}`,
+        content: pageText,
       },
     ],
   });
+
   const block = message.content[0];
-  if (block.type === "text") {
+  if (block?.type === "text") {
     return block.text;
   }
   return "無法產生摘要";
