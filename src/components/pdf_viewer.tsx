@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import PageSummary from "./page_summary";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -13,9 +14,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 type PdfViewerProps = {
   fileUrl: string;
+  documentId: string;
 };
 
-export default function PdfViewer({ fileUrl }: PdfViewerProps) {
+export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
 
   return (
@@ -30,6 +32,7 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
           <div
             key={`page_${index + 1}`}
             style={{
+              display: "flex",
               margin: "24px auto",
               padding: "16px",
               background: "white",
@@ -47,6 +50,7 @@ export default function PdfViewer({ fileUrl }: PdfViewerProps) {
             <p style={{ textAlign: "center", marginTop: 8 }}>
               Page {index + 1} / {numPages}
             </p>
+            <PageSummary documentId={documentId} pageNumber={index + 1} />
           </div>
         ))}
       </Document>

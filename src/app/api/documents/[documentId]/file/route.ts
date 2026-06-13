@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   return new Response(fileBuffer, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${document.originalName}"`,
+      "Content-Disposition": `inline; filename="${encodeURIComponent(document.originalName)}"`,
     },
   });
 }

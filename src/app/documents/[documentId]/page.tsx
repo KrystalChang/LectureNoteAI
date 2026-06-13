@@ -28,7 +28,10 @@ export default async function DocumentPage({ params }: DocumentPageProps) {
       <h1>Document: {document.originalName}</h1>
       <p>Document ID: {document.id}</p>
       <p>Stored Filename: {document.storedFilename}</p>
-      <PdfViewer fileUrl={`/api/documents/${document.id}/file`} />
+      <PdfViewer
+        fileUrl={`/api/documents/${document.id}/file`}
+        documentId={document.id}
+      />
     </main>
   );
 }
