@@ -35,3 +35,36 @@ export async function summaryOnePage(pageText: string) {
   }
   return "無法產生摘要";
 }
+
+export async function answerQuestionAboutPage(input: {
+  pageText: string;
+  selectedText: string;
+  question: string;
+}) {
+  const { pageText, selectedText, question } = input;
+
+  const message = await client.messages.create({
+    model: MODEL,
+    max_tokens: 1024,
+    system: [
+      {
+        type: "text",
+        text: "你是一位專業的學術助理。請根據講義頁面內容與使用者選取的文字，用繁體中文回答問題。只能根據提供內容回答，不要編造。",
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [
+      {
+        role: "user",
+        content: `講義頁面內容：\n${pageText}\n\n使用者選取文字：\n${selectedText}\n\n問題：\n${question}`,
+      },
+    ],
+  });
+
+  const block = message.content[0];
+  if (block?.type === "text") {
+    return block.text;
+  }
+
+  return "無法產生回答";
+}

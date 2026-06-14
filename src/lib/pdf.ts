@@ -1,11 +1,12 @@
-import "./pdf-polyfill";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 export async function extractPageTexts(buffer: Buffer): Promise<{
   pageCount: number;
   texts: string[];
 }> {
+  await import("./pdf-polyfill");
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
   const doc = await getDocument({ data: new Uint8Array(buffer) }).promise;
   try {
     const pageCount = doc.numPages;

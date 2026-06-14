@@ -10,3 +10,5 @@ if (typeof globalThis.DOMMatrix === "undefined") {
     f = 0;
   };
 }
+
+export {};

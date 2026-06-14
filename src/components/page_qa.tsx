@@ -1,0 +1,94 @@
+"use client";
+
+import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+type PageQAProps = {
+  documentId: string;
+  pageNumber: number;
+  selectedText: string;
+};
+
+export default function PageQA({
+  documentId,
+  pageNumber,
+  selectedText,
+}: PageQAProps) {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit() {
+    if (!selectedText.trim() || !question.trim()) return;
+    setLoading(true);
+    setError("");
+    setAnswer("");
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}/qa`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageNumber,
+          question,
+          selectedText,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to fetch answer");
+        return;
+      } else {
+        setAnswer(data.answer);
+      }
+    } catch {
+      setError("網路錯誤，無法取得回答");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4 text-sm">
+      <section className="space-y-2">
+        <p className="font-medium text-gray-900">Selected text</p>
+        <p className="rounded border border-gray-200 bg-gray-50 p-3 text-gray-700">
+          {selectedText || "Select text from the PDF first."}
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <label className="font-medium text-gray-900" htmlFor="qa-question">
+          Question
+        </label>
+
+        <textarea
+          id="qa-question"
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          className="min-h-24 w-full rounded border border-gray-300 p-3 outline-none focus:border-blue-500"
+          placeholder="Ask a question about the selected text..."
+        />
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading || !selectedText.trim() || !question.trim()}
+          className="rounded bg-blue-600 px-3 py-2 text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+        >
+          {loading ? "Answering..." : "Ask AI"}
+        </button>
+      </section>
+
+      {error && <p className="text-red-600">{error}</p>}
+
+      {answer && (
+        <section className="markdown">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
+        </section>
+      )}
+    </div>
+  );
+}

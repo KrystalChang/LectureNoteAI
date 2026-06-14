@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import PageSummary from "./page_summary";
+import PageQA from "./page_qa";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -18,41 +19,49 @@ type PdfViewerProps = {
   documentId: string;
 };
 
+type RightPanelTab = "summary" | "qa";
+
 export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-
+  const [activeTab, setActiveTab] = useState<RightPanelTab>("summary");
+  const [selectedText, setSelectedText] = useState("");
   // Map<pageNumber, DOM element> — populated via ref callbacks below.
   // We use a ref (not state) because changes shouldn't trigger re-renders.
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Detect which page is currently in view using IntersectionObserver.
-  // Whichever page wrapper has the largest visible ratio "wins" and
-  // becomes currentPage — that drives the right panel's summary.
-  useEffect(() => {
-    if (numPages === 0) return;
+  const updateCurrentPageFromScroll = useCallback(() => {
     const root = scrollContainerRef.current;
     if (!root) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible) {
-          const page = Number(
-            (visible.target as HTMLElement).dataset.page ?? 0,
-          );
-          if (page > 0) setCurrentPage(page);
-        }
-      },
-      { root, threshold: [0.25, 0.5, 0.75] },
-    );
+    const rootRect = root.getBoundingClientRect();
+    const rootCenterY = rootRect.top + rootRect.height / 2;
+    let closestPage: number | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
 
-    pageRefs.current.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [numPages]);
+    pageRefs.current.forEach((el, pageNumber) => {
+      const pageRect = el.getBoundingClientRect();
+      const pageCenterY = pageRect.top + pageRect.height / 2;
+      const distance = Math.abs(pageCenterY - rootCenterY);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestPage = pageNumber;
+      }
+    });
+
+    if (closestPage === null) return;
+    const nextPage = closestPage;
+
+    setCurrentPage((previousPage) =>
+      previousPage === nextPage ? previousPage : nextPage,
+    );
+  }, []);
+
+  useEffect(() => {
+    if (numPages > 0) updateCurrentPageFromScroll();
+  }, [numPages, updateCurrentPageFromScroll]);
 
   return (
     <Group orientation="horizontal" className="h-full">
@@ -60,6 +69,15 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
       <Panel defaultSize={60} minSize={30}>
         <div
           ref={scrollContainerRef}
+          onScroll={updateCurrentPageFromScroll}
+          onMouseUp={() => {
+            const text = window.getSelection()?.toString().trim() ?? "";
+
+            if (text) {
+              setSelectedText(text);
+              setActiveTab("qa");
+            }
+          }}
           className="h-full overflow-y-auto bg-gray-100"
         >
           <Document
@@ -103,16 +121,44 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
       <Panel defaultSize={40} minSize={25}>
         <aside className="h-full flex flex-col bg-white border-l border-gray-200">
           <header className="px-4 py-3 border-b border-gray-200 shrink-0">
-            <h2 className="text-sm font-semibold text-gray-900">
-              Summary — Page {currentPage}
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">
+              Page {currentPage}
             </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab("summary")}
+                className={
+                  activeTab === "summary" ? "font-semibold" : "text-gray-500"
+                }
+              >
+                Summary
+              </button>
+
+              <button
+                onClick={() => setActiveTab("qa")}
+                className={
+                  activeTab === "qa" ? "font-semibold" : "text-gray-500"
+                }
+              >
+                Q&A
+              </button>
+            </div>
           </header>
+
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            {numPages > 0 && (
+            {activeTab === "summary" && numPages > 0 && (
               <PageSummary
                 key={currentPage}
                 documentId={documentId}
                 pageNumber={currentPage}
+              />
+            )}
+
+            {activeTab === "qa" && (
+              <PageQA
+                documentId={documentId}
+                pageNumber={currentPage}
+                selectedText={selectedText}
               />
             )}
           </div>
