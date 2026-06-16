@@ -9,23 +9,26 @@ type PageSummaryProps = {
   pageNumber: number;
 };
 
+type SummaryState =
+  | { status: "loading"; summary: ""; error: "" }
+  | { status: "success"; summary: string; error: "" }
+  | { status: "error"; summary: ""; error: string };
+
 export default function PageSummary({
   documentId,
   pageNumber,
 }: PageSummaryProps) {
-  const [summary, setSummary] = useState<string>("");
-  const [error, setError] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [summaryState, setSummaryState] = useState<SummaryState>({
+    status: "loading",
+    summary: "",
+    error: "",
+  });
 
   useEffect(() => {
     // Guard: if the user switches pages while a request is in flight,
     // the older response could clobber the newer one. `cancelled` makes
     // the stale response a no-op.
     let cancelled = false;
-
-    setLoading(true);
-    setError("");
-    setSummary("");
 
     async function fetchSummary() {
       try {
@@ -41,14 +44,26 @@ export default function PageSummary({
         if (cancelled) return;
 
         if (!response.ok) {
-          setError(data.error || "Failed to fetch summary");
+          setSummaryState({
+            status: "error",
+            summary: "",
+            error: data.error || "Failed to fetch summary",
+          });
         } else {
-          setSummary(data.summary);
+          setSummaryState({
+            status: "success",
+            summary: data.summary,
+            error: "",
+          });
         }
       } catch {
-        if (!cancelled) setError("網路錯誤，無法取得摘要");
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setSummaryState({
+            status: "error",
+            summary: "",
+            error: "網路錯誤，無法取得摘要",
+          });
+        }
       }
     }
 
@@ -58,7 +73,7 @@ export default function PageSummary({
     };
   }, [documentId, pageNumber]);
 
-  if (loading) {
+  if (summaryState.status === "loading") {
     return (
       <div className="space-y-2 animate-pulse" aria-label="Loading summary">
         <div className="h-3 bg-gray-200 rounded w-3/4" />
@@ -69,13 +84,15 @@ export default function PageSummary({
     );
   }
 
-  if (error) {
-    return <p className="text-sm text-red-600">{error}</p>;
+  if (summaryState.status === "error") {
+    return <p className="text-sm text-red-600">{summaryState.error}</p>;
   }
 
   return (
     <div className="markdown text-sm">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{summary}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        {summaryState.summary}
+      </ReactMarkdown>
     </div>
   );
 }

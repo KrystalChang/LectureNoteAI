@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -10,21 +10,68 @@ type PageQAProps = {
   selectedText: string;
 };
 
+type QAEntry = {
+  id: string;
+  pageNumber: number;
+  selectedText: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+};
+
 export default function PageQA({
   documentId,
   pageNumber,
   selectedText,
 }: PageQAProps) {
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [qaHistory, setQaHistory] = useState<QAEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchQAHistory() {
+      setHistoryLoading(true);
+      setError("");
+      setQuestion("");
+      setQaHistory([]);
+
+      try {
+        const response = await fetch(
+          `/api/documents/${documentId}/qa?pageNumber=${pageNumber}`,
+        );
+        const data = await response.json();
+
+        if (ignore) return;
+
+        if (!response.ok) {
+          setError(data.error || "Failed to fetch QA history");
+          return;
+        }
+
+        setQaHistory(data.qaEntries);
+      } catch {
+        if (!ignore) setError("Failed to fetch QA history");
+      } finally {
+        if (!ignore) setHistoryLoading(false);
+      }
+    }
+
+    fetchQAHistory();
+
+    return () => {
+      ignore = true;
+    };
+  }, [documentId, pageNumber]);
 
   async function handleSubmit() {
     if (!selectedText.trim() || !question.trim()) return;
     setLoading(true);
     setError("");
-    setAnswer("");
 
     try {
       const response = await fetch(`/api/documents/${documentId}/qa`, {
@@ -40,9 +87,10 @@ export default function PageQA({
       if (!response.ok) {
         setError(data.error || "Failed to fetch answer");
         return;
-      } else {
-        setAnswer(data.answer);
       }
+
+      setQaHistory((current) => [...current, data.qaEntry]);
+      setQuestion("");
     } catch {
       setError("網路錯誤，無法取得回答");
     } finally {
@@ -84,11 +132,30 @@ export default function PageQA({
 
       {error && <p className="text-red-600">{error}</p>}
 
-      {answer && (
-        <section className="markdown">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
-        </section>
-      )}
+      <section className="space-y-3">
+        <p className="font-medium text-gray-900">History</p>
+
+        {historyLoading && <p>Loading history...</p>}
+
+        {!historyLoading && qaHistory.length === 0 && <p>No questions yet.</p>}
+
+        {qaHistory.map((entry) => (
+          <article
+            key={entry.id}
+            className="space-y-2 rounded border border-gray-200 p-3"
+          >
+            <p className="font-medium text-gray-900">Q: {entry.question}</p>
+            <p className="font-medium text-gray-900">
+              Selected Text: {entry.selectedText}
+            </p>
+            <div className="markdown">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {entry.answer}
+              </ReactMarkdown>
+            </div>
+          </article>
+        ))}
+      </section>
     </div>
   );
 }

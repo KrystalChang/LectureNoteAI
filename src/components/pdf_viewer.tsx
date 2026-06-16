@@ -20,12 +20,18 @@ type PdfViewerProps = {
 };
 
 type RightPanelTab = "summary" | "qa";
+type SelectedTextState = {
+  pageNumber: number;
+  text: string;
+} | null;
 
 export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState<RightPanelTab>("summary");
-  const [selectedText, setSelectedText] = useState("");
+  const [selectedText, setSelectedText] = useState<SelectedTextState>(null);
+  const currentPageSelectedText =
+    selectedText?.pageNumber === currentPage ? selectedText.text : "";
   // Map<pageNumber, DOM element> — populated via ref callbacks below.
   // We use a ref (not state) because changes shouldn't trigger re-renders.
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -74,7 +80,7 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
             const text = window.getSelection()?.toString().trim() ?? "";
 
             if (text) {
-              setSelectedText(text);
+              setSelectedText({ pageNumber: currentPage, text });
               setActiveTab("qa");
             }
           }}
@@ -156,9 +162,10 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
 
             {activeTab === "qa" && (
               <PageQA
+                key={currentPage}
                 documentId={documentId}
                 pageNumber={currentPage}
-                selectedText={selectedText}
+                selectedText={currentPageSelectedText}
               />
             )}
           </div>

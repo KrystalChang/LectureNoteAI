@@ -60,11 +60,41 @@ export async function POST(request: Request, { params }: RouteParams) {
       },
     });
 
-    return Response.json({ answer, qaEntryId: qaEntry.id });
+    return Response.json({ qaEntry });
   } catch (error) {
     console.error("Error creating QA entry:", error);
     return Response.json(
       { error: "Failed to answer question" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: Request, { params }: RouteParams) {
+  try {
+    const { documentId } = await params;
+    const { searchParams } = new URL(request.url);
+    const pageNumber = Number(searchParams.get("pageNumber"));
+
+    if (!pageNumber) {
+      return Response.json({ error: "Missing pageNumber" }, { status: 400 });
+    }
+
+    const qaEntries = await prisma.qAEntry.findMany({
+      where: {
+        documentId,
+        pageNumber,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
+    return Response.json({ qaEntries });
+  } catch (error) {
+    console.error("Error fetching QA history:", error);
+    return Response.json(
+      { error: "Failed to fetch QA history" },
       { status: 500 },
     );
   }
