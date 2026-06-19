@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import PdfViewer from "@/components/pdf_viewer";
+import PdfViewerClient from "@/components/pdf_viewer_client";
 import Link from "next/link";
 
 type DocumentPageProps = {
@@ -46,7 +46,7 @@ export default async function DocumentPage({ params }: DocumentPageProps) {
       </header>
 
       <div className="flex-1 min-h-0">
-        <PdfViewer
+        <PdfViewerClient
           fileUrl={`/api/documents/${document.id}/file`}
           documentId={document.id}
         />

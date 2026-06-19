@@ -27,6 +27,7 @@ export default function PageQA({
   const [question, setQuestion] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [qaHistory, setQaHistory] = useState<QAEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -98,6 +99,21 @@ export default function PageQA({
     }
   }
 
+  async function handleCopyAnswer(entryId: string, answer: string) {
+    try {
+      await navigator.clipboard.writeText(answer);
+      setCopiedId(entryId);
+
+      window.setTimeout(() => {
+        setCopiedId((currentId) =>
+          currentId === entryId ? null : currentId,
+        );
+      }, 2000);
+    } catch {
+      setError("無法複製回答，請再試一次");
+    }
+  }
+
   return (
     <div className="space-y-4 text-sm">
       <section className="space-y-2">
@@ -148,6 +164,16 @@ export default function PageQA({
             <p className="font-medium text-gray-900">
               Selected Text: {entry.selectedText}
             </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-medium text-gray-900">Answer</p>
+              <button
+                type="button"
+                onClick={() => handleCopyAnswer(entry.id, entry.answer)}
+                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+              >
+                {copiedId === entry.id ? "Copied" : "Copy Markdown"}
+              </button>
+            </div>
             <div className="markdown">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {entry.answer}

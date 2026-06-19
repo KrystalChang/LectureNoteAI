@@ -10,6 +10,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
+    "@blocknote/core": "^0.51.4",
+    "@blocknote/mantine": "^0.51.4",
+    "@blocknote/react": "^0.51.4",
+    "@mantine/core": "^9.3.2",
+    "@mantine/hooks": "^9.3.2",
+    "@mantine/utils": "^6.0.22",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
     "next": "16.2.4",

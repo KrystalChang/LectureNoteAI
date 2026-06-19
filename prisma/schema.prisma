@@ -17,6 +17,7 @@ model Document {
 
   pages          PageContent[]
   qa             QAEntry[]
+  note           Note[]
 }
 
 model PageContent {
@@ -45,3 +46,14 @@ model QAEntry {
   @@index([documentId, pageNumber])
 }
 
+model Note {
+  id            String   @id @default(uuid())
+  documentId    String
+  pageNumber    Int
+  content       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@unique([documentId, pageNumber])
+}

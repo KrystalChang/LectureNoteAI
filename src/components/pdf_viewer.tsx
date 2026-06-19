@@ -5,6 +5,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import PageSummary from "./page_summary";
 import PageQA from "./page_qa";
+import PageNotes from "./page_notes";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -19,7 +20,7 @@ type PdfViewerProps = {
   documentId: string;
 };
 
-type RightPanelTab = "summary" | "qa";
+type RightPanelTab = "summary" | "qa" | "notes";
 type SelectedTextState = {
   pageNumber: number;
   text: string;
@@ -81,7 +82,10 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
 
             if (text) {
               setSelectedText({ pageNumber: currentPage, text });
-              setActiveTab("qa");
+
+              if (activeTab === "summary") {
+                setActiveTab("qa");
+              }
             }
           }}
           className="h-full overflow-y-auto bg-gray-100"
@@ -148,6 +152,15 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
               >
                 Q&A
               </button>
+
+              <button
+                onClick={() => setActiveTab("notes")}
+                className={
+                  activeTab === "notes" ? "font-semibold" : "text-gray-500"
+                }
+              >
+                Notes
+              </button>
             </div>
           </header>
 
@@ -166,6 +179,14 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
                 documentId={documentId}
                 pageNumber={currentPage}
                 selectedText={currentPageSelectedText}
+              />
+            )}
+
+            {activeTab === "notes" && (
+              <PageNotes
+                key={currentPage}
+                documentId={documentId}
+                pageNumber={currentPage}
               />
             )}
           </div>
