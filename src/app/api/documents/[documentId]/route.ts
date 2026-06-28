@@ -1,3 +1,4 @@
+import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -6,7 +7,7 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(_request: Request, { params }: RouteContext) {
   const { documentId } = await params;
   const document = await prisma.document.findUnique({
     where: { id: documentId },
@@ -21,4 +22,117 @@ export async function GET(request: Request, { params }: RouteContext) {
     originalName: document.originalName,
     storedFilename: document.storedFilename,
   });
+}
+
+export async function PATCH(request: Request, { params }: RouteContext) {
+  try {
+    const { documentId } = await params;
+    const body: unknown = await request.json();
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return Response.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const input = body as Record<string, unknown>;
+    const data: { originalName?: string; folderId?: string | null } = {};
+
+    if ("originalName" in input) {
+      if (typeof input.originalName !== "string" || !input.originalName.trim()) {
+        return Response.json({ error: "Document name is required" }, { status: 400 });
+      }
+
+      const trimmedName = input.originalName.trim();
+      data.originalName = trimmedName.toLowerCase().endsWith(".pdf")
+        ? trimmedName
+        : `${trimmedName}.pdf`;
+    }
+
+    if ("folderId" in input) {
+      if (input.folderId !== null && typeof input.folderId !== "string") {
+        return Response.json({ error: "Invalid folder ID" }, { status: 400 });
+      }
+
+      const folderId =
+        typeof input.folderId === "string" && input.folderId.trim()
+          ? input.folderId.trim()
+          : null;
+
+      if (folderId) {
+        const folder = await prisma.folder.findUnique({
+          where: { id: folderId },
+          select: { id: true },
+        });
+
+        if (!folder) {
+          return Response.json({ error: "Folder not found" }, { status: 404 });
+        }
+      }
+
+      data.folderId = folderId;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return Response.json({ error: "No changes provided" }, { status: 400 });
+    }
+
+    const existingDocument = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { id: true },
+    });
+
+    if (!existingDocument) {
+      return Response.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    const document = await prisma.document.update({
+      where: { id: documentId },
+      data,
+      select: {
+        id: true,
+        originalName: true,
+        totalPages: true,
+        uploadedAt: true,
+        folderId: true,
+      },
+    });
+
+    return Response.json({ document });
+  } catch (error) {
+    console.error("Error updating document:", error);
+    return Response.json({ error: "Failed to update document" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, { params }: RouteContext) {
+  try {
+    const { documentId } = await params;
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { id: true, filePath: true },
+    });
+
+    if (!document) {
+      return Response.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    await prisma.document.delete({ where: { id: documentId } });
+
+    try {
+      await fs.unlink(document.filePath);
+    } catch (fileError) {
+      const code =
+        fileError && typeof fileError === "object" && "code" in fileError
+          ? fileError.code
+          : undefined;
+
+      if (code !== "ENOENT") {
+        console.error("Failed to remove PDF file:", fileError);
+      }
+    }
+
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting document:", error);
+    return Response.json({ error: "Failed to delete document" }, { status: 500 });
+  }
 }

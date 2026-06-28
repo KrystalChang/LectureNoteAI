@@ -10,9 +10,27 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const folderIdValue = formData.get("folderId");
 
     if (!(file instanceof File)) {
       return Response.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (folderIdValue !== null && typeof folderIdValue !== "string") {
+      return Response.json({ error: "Invalid folder ID" }, { status: 400 });
+    }
+
+    const folderId = folderIdValue?.trim() || null;
+
+    if (folderId) {
+      const folder = await prisma.folder.findUnique({
+        where: { id: folderId },
+        select: { id: true },
+      });
+
+      if (!folder) {
+        return Response.json({ error: "Folder not found" }, { status: 404 });
+      }
     }
 
     if (file.type !== "application/pdf") {
@@ -31,14 +49,12 @@ export async function POST(request: Request) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
     const filename = `${randomUUID()}.pdf`;
-
     const uploadDir = path.join(process.cwd(), "uploads");
+
     await fs.mkdir(uploadDir, { recursive: true });
 
     const filePath = path.join(uploadDir, filename);
-
     await fs.writeFile(filePath, buffer);
 
     const { pageCount, texts } = await extractPageTexts(buffer);
@@ -49,6 +65,7 @@ export async function POST(request: Request) {
         storedFilename: filename,
         filePath,
         totalPages: pageCount,
+        folderId,
         pages: {
           create: texts.map((extractedText, index) => ({
             pageNumber: index + 1,
@@ -63,10 +80,11 @@ export async function POST(request: Request) {
       originalName: document.originalName,
       storedFilename: document.storedFilename,
       totalPages: document.totalPages,
+      folderId: document.folderId,
       extractedTexts: texts,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Error uploading PDF:", error);
 
     return Response.json({ error: "Failed to upload file" }, { status: 500 });
   }

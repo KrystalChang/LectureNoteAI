@@ -15,45 +15,65 @@ model Document {
   totalPages     Int?
   uploadedAt     DateTime @default(now())
 
-  pages          PageContent[]
-  qa             QAEntry[]
-  note           Note[]
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  pages PageContent[]
+  qa    QAEntry[]
+  note  Note[]
+
+  @@index([folderId])
+}
+
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent    Folder?    @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[]   @relation("FolderTree")
+  documents Document[]
+
+  @@index([parentId])
 }
 
 model PageContent {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   documentId    String
   pageNumber    Int
   extractedText String
   summary       String?
 
-  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, pageNumber])
 }
 
 model QAEntry {
-  id            String   @id @default(uuid())
-  documentId    String
-  pageNumber    Int
-  selectedText  String
-  question      String
-  answer        String
-  createdAt     DateTime @default(now())
+  id           String   @id @default(uuid())
+  documentId   String
+  pageNumber   Int
+  selectedText String
+  question     String
+  answer       String
+  createdAt    DateTime @default(now())
 
-  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId, pageNumber])
 }
 
 model Note {
-  id            String   @id @default(uuid())
-  documentId    String
-  pageNumber    Int
-  content       String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(uuid())
+  documentId String
+  pageNumber Int
+  content    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
   @@unique([documentId, pageNumber])
 }

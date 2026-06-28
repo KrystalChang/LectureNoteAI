@@ -22,11 +22,6 @@ type Note = {
   updatedAt: string;
 };
 
-type NoteEditorClientProps = {
-  initialMarkdown: string;
-  onChange: (markdown: string) => void;
-};
-
 type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
 
 export default function PageNotes({ documentId, pageNumber }: PageNotesProps) {

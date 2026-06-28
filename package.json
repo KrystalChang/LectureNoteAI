@@ -18,6 +18,7 @@
     "@mantine/utils": "^6.0.22",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
+    "lucide-react": "^1.21.0",
     "next": "16.2.4",
     "pdfjs-dist": "^5.4.296",
     "prisma": "^6.19.3",

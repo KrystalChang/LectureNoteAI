@@ -2,8 +2,23 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LoaderCircle, UploadCloud } from "lucide-react";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB, per PRD §5.1
+
+type UploadPageProps = {
+  folderId?: string | null;
+  navigateAfterUpload?: boolean;
+  onUploadComplete?: (document: UploadedDocument) => void;
+};
+
+export type UploadedDocument = {
+  documentId: string;
+  originalName: string;
+  storedFilename: string;
+  totalPages: number | null;
+  folderId: string | null;
+};
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -11,7 +26,11 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function UploadPage() {
+export default function UploadPage({
+  folderId = null,
+  navigateAfterUpload = true,
+  onUploadComplete,
+}: UploadPageProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -51,6 +70,7 @@ export default function UploadPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("folderId", folderId ?? "");
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -64,7 +84,14 @@ export default function UploadPage() {
         return;
       }
 
-      router.push(`/documents/${data.documentId}`);
+      setFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+
+      onUploadComplete?.(data);
+
+      if (navigateAfterUpload) {
+        router.push(`/documents/${data.documentId}`);
+      }
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -92,19 +119,7 @@ export default function UploadPage() {
             : "border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"
         }`}
       >
-        <svg
-          className="h-10 w-10 text-gray-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5 7.5 12M12 7.5v9"
-          />
-        </svg>
+        <UploadCloud className="h-10 w-10 text-gray-400" aria-hidden="true" />
 
         {file ? (
           <div className="text-center">
@@ -136,25 +151,7 @@ export default function UploadPage() {
         className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white shadow-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
       >
         {isUploading && (
-          <svg
-            className="h-4 w-4 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
+          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
         )}
         {isUploading ? "Uploading..." : "Upload"}
       </button>
