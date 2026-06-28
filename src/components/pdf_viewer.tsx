@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import PageSummary from "./page_summary";
-import PageQA from "./page_qa";
 import PageNotes from "./page_notes";
+import PageChat from "./pageChat";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -20,7 +19,7 @@ type PdfViewerProps = {
   documentId: string;
 };
 
-type RightPanelTab = "summary" | "qa" | "notes";
+type RightPanelTab = "chat" | "notes";
 type SelectedTextState = {
   pageNumber: number;
   text: string;
@@ -82,10 +81,6 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
 
             if (text) {
               setSelectedText({ pageNumber: currentPage, text });
-
-              if (activeTab === "summary") {
-                setActiveTab("qa");
-              }
             }
           }}
           className="h-full overflow-y-auto bg-gray-100"
@@ -136,21 +131,12 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
             </h2>
             <div className="flex gap-2">
               <button
-                onClick={() => setActiveTab("summary")}
+                onClick={() => setActiveTab("chat")}
                 className={
-                  activeTab === "summary" ? "font-semibold" : "text-gray-500"
+                  activeTab === "chat" ? "font-semibold" : "text-gray-500"
                 }
               >
-                Summary
-              </button>
-
-              <button
-                onClick={() => setActiveTab("qa")}
-                className={
-                  activeTab === "qa" ? "font-semibold" : "text-gray-500"
-                }
-              >
-                Q&A
+                Chat
               </button>
 
               <button
@@ -165,23 +151,15 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
           </header>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            {activeTab === "summary" && numPages > 0 && (
-              <PageSummary
-                key={currentPage}
-                documentId={documentId}
-                pageNumber={currentPage}
-              />
-            )}
-
-            {activeTab === "qa" && (
-              <PageQA
+            {activeTab === "chat" && numPages > 0 && (
+              <PageChat
                 key={currentPage}
                 documentId={documentId}
                 pageNumber={currentPage}
                 selectedText={currentPageSelectedText}
               />
             )}
-
+            s
             {activeTab === "notes" && (
               <PageNotes
                 key={currentPage}

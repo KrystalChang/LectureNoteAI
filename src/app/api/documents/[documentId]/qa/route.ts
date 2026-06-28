@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { pageNumber, question, selectedText }: CreateQARequest =
       await request.json();
 
-    if (!pageNumber || !question?.trim() || !selectedText?.trim()) {
+    if (!pageNumber || !question?.trim()) {
       return Response.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -54,8 +54,8 @@ export async function POST(request: Request, { params }: RouteParams) {
           connect: { id: documentId },
         },
         pageNumber,
-        question,
-        selectedText,
+        question: question.trim(),
+        selectedText: selectedText?.trim() ?? "",
         answer,
       },
     });
