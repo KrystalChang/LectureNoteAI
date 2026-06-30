@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import UploadPage from "./pdf_upload";
+import AISettingsButton from "./ai_settings_button";
 
 type Folder = {
   id: string;
@@ -71,12 +72,7 @@ type ItemMenuProps = {
   children: ReactNode;
 };
 
-function ItemMenu({
-  menuKey,
-  openMenuKey,
-  onToggle,
-  children,
-}: ItemMenuProps) {
+function ItemMenu({ menuKey, openMenuKey, onToggle, children }: ItemMenuProps) {
   const open = menuKey === openMenuKey;
 
   return (
@@ -107,7 +103,11 @@ type MenuButtonProps = {
   onClick: () => void;
 };
 
-function MenuButton({ children, destructive = false, onClick }: MenuButtonProps) {
+function MenuButton({
+  children,
+  destructive = false,
+  onClick,
+}: MenuButtonProps) {
   return (
     <button
       type="button"
@@ -222,7 +222,8 @@ function LibraryContents({
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {folders.map((folder) => {
-              const itemCount = folder._count.children + folder._count.documents;
+              const itemCount =
+                folder._count.children + folder._count.documents;
               const target: ActionTarget = { kind: "folder", item: folder };
 
               return (
@@ -253,10 +254,14 @@ function LibraryContents({
                     menuKey={`folder-${folder.id}`}
                     openMenuKey={openMenuKey}
                     onToggle={(key) =>
-                      setOpenMenuKey((current) => (current === key ? null : key))
+                      setOpenMenuKey((current) =>
+                        current === key ? null : key,
+                      )
                     }
                   >
-                    <MenuButton onClick={() => closeMenuAnd(() => onRename(target))}>
+                    <MenuButton
+                      onClick={() => closeMenuAnd(() => onRename(target))}
+                    >
                       <FolderPen className="h-4 w-4" aria-hidden="true" />
                       Rename
                     </MenuButton>
@@ -312,10 +317,14 @@ function LibraryContents({
                     menuKey={`document-${document.id}`}
                     openMenuKey={openMenuKey}
                     onToggle={(key) =>
-                      setOpenMenuKey((current) => (current === key ? null : key))
+                      setOpenMenuKey((current) =>
+                        current === key ? null : key,
+                      )
                     }
                   >
-                    <MenuButton onClick={() => closeMenuAnd(() => onRename(target))}>
+                    <MenuButton
+                      onClick={() => closeMenuAnd(() => onRename(target))}
+                    >
                       <FilePenLine className="h-4 w-4" aria-hidden="true" />
                       Rename
                     </MenuButton>
@@ -618,11 +627,15 @@ export default function LibraryBrowser() {
               <Upload className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Upload PDF</span>
             </button>
+            <AISettingsButton />
           </div>
         </div>
       </header>
 
-      <nav className="border-b border-gray-200 bg-white" aria-label="Breadcrumb">
+      <nav
+        className="border-b border-gray-200 bg-white"
+        aria-label="Breadcrumb"
+      >
         <div className="mx-auto flex h-12 max-w-7xl items-center gap-1 overflow-x-auto px-4 text-sm sm:px-6">
           <button
             type="button"
@@ -637,7 +650,10 @@ export default function LibraryBrowser() {
           </button>
           {folderPath.map((folder, index) => (
             <span key={folder.id} className="flex min-w-0 items-center gap-1">
-              <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" aria-hidden="true" />
+              <ChevronRight
+                className="h-4 w-4 shrink-0 text-gray-300"
+                aria-hidden="true"
+              />
               <button
                 type="button"
                 onClick={() => navigateToPathIndex(index)}
@@ -680,7 +696,10 @@ export default function LibraryBrowser() {
           }}
         >
           <form onSubmit={handleCreateFolder} className="space-y-4">
-            <label htmlFor="folder-name" className="block text-sm font-medium text-gray-800">
+            <label
+              htmlFor="folder-name"
+              className="block text-sm font-medium text-gray-800"
+            >
               Name
               <input
                 id="folder-name"
@@ -690,7 +709,9 @@ export default function LibraryBrowser() {
                 className="mt-2 h-10 w-full rounded border border-gray-300 px-3 outline-none focus:border-blue-500"
               />
             </label>
-            {createError && <p className="text-sm text-red-600">{createError}</p>}
+            {createError && (
+              <p className="text-sm text-red-600">{createError}</p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -705,7 +726,9 @@ export default function LibraryBrowser() {
                 disabled={creatingFolder || !folderName.trim()}
                 className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
               >
-                {creatingFolder && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {creatingFolder && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                )}
                 Create
               </button>
             </div>
@@ -734,7 +757,10 @@ export default function LibraryBrowser() {
           }}
         >
           <form onSubmit={handleRename} className="space-y-4">
-            <label htmlFor="rename-value" className="block text-sm font-medium text-gray-800">
+            <label
+              htmlFor="rename-value"
+              className="block text-sm font-medium text-gray-800"
+            >
               Name
               <input
                 id="rename-value"
@@ -744,7 +770,9 @@ export default function LibraryBrowser() {
                 className="mt-2 h-10 w-full rounded border border-gray-300 px-3 outline-none focus:border-blue-500"
               />
             </label>
-            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+            {actionError && (
+              <p className="text-sm text-red-600">{actionError}</p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -759,7 +787,9 @@ export default function LibraryBrowser() {
                 disabled={actionLoading || !renameValue.trim()}
                 className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
               >
-                {actionLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {actionLoading && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                )}
                 Rename
               </button>
             </div>
@@ -778,7 +808,10 @@ export default function LibraryBrowser() {
             <p className="truncate text-sm font-medium text-gray-800">
               {moveTarget.originalName}
             </p>
-            <label htmlFor="move-folder" className="block text-sm font-medium text-gray-800">
+            <label
+              htmlFor="move-folder"
+              className="block text-sm font-medium text-gray-800"
+            >
               Destination
               <select
                 id="move-folder"
@@ -795,8 +828,12 @@ export default function LibraryBrowser() {
                 ))}
               </select>
             </label>
-            {foldersLoading && <p className="text-sm text-gray-500">Loading folders...</p>}
-            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+            {foldersLoading && (
+              <p className="text-sm text-gray-500">Loading folders...</p>
+            )}
+            {actionError && (
+              <p className="text-sm text-red-600">{actionError}</p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -811,7 +848,9 @@ export default function LibraryBrowser() {
                 disabled={actionLoading || foldersLoading}
                 className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
               >
-                {actionLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {actionLoading && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                )}
                 Move
               </button>
             </div>
@@ -832,7 +871,9 @@ export default function LibraryBrowser() {
                 ? `Permanently delete “${deleteTarget.item.originalName}”? Its notes, summaries, and Q&A history will also be deleted.`
                 : `Delete “${deleteTarget.item.name}”? Nested folders will be removed, while their PDFs will be moved to My Library.`}
             </p>
-            {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+            {actionError && (
+              <p className="text-sm text-red-600">{actionError}</p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -848,7 +889,9 @@ export default function LibraryBrowser() {
                 disabled={actionLoading}
                 className="inline-flex h-9 items-center gap-2 rounded bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700 disabled:bg-red-300"
               >
-                {actionLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {actionLoading && (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                )}
                 Delete
               </button>
             </div>

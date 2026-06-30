@@ -3,7 +3,13 @@ import { summaryOnePage } from "@/lib/ai";
 
 export async function POST(request: Request) {
   try {
-    const { documentId, pageNumber } = await request.json();
+    const { documentId, pageNumber, systemPrompt, userPrompt } =
+      await request.json();
+    const customSystemPrompt =
+      typeof systemPrompt === "string" ? systemPrompt.trim() : "";
+    const customUserPrompt =
+      typeof userPrompt === "string" ? userPrompt.trim() : "";
+    const hasCustomPrompt = Boolean(customSystemPrompt || customUserPrompt);
 
     const result = await prisma.pageContent.findFirst({
       where: {
@@ -18,11 +24,19 @@ export async function POST(request: Request) {
     if (!result) {
       return Response.json({ error: "Page not found" }, { status: 404 });
     }
-    if (result.summary) {
+    if (result.summary && !hasCustomPrompt) {
       return Response.json({ summary: result.summary, cached: true });
     }
 
-    const summary = await summaryOnePage(result.extractedText);
+    const summary = await summaryOnePage(
+      result.extractedText,
+      customSystemPrompt,
+      customUserPrompt,
+    );
+
+    if (hasCustomPrompt) {
+      return Response.json({ summary, cached: false });
+    }
 
     const updatedPage = await prisma.pageContent.update({
       where: {

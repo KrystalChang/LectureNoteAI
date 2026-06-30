@@ -3,11 +3,17 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  PromptPreferences,
+  buildQAPrompt,
+  buildSummaryPrompt,
+} from "@/lib/prompt_preferences";
 
 type PageChatProps = {
   documentId: string;
   pageNumber: number;
   selectedText: string;
+  promptPreferences: PromptPreferences;
 };
 
 type QAEntry = {
@@ -23,6 +29,7 @@ export default function PageChat({
   documentId,
   pageNumber,
   selectedText,
+  promptPreferences,
 }: PageChatProps) {
   const [summary, setSummary] = useState("");
   const [qaHistory, setQaHistory] = useState<QAEntry[]>([]);
@@ -33,6 +40,8 @@ export default function PageChat({
   const [historyLoading, setHistoryLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const summaryPrompt = buildSummaryPrompt(promptPreferences);
+  const qaPrompt = buildQAPrompt(promptPreferences);
 
   useEffect(() => {
     let ignore = false;
@@ -48,7 +57,12 @@ export default function PageChat({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documentId, pageNumber }),
+            body: JSON.stringify({
+              documentId,
+              pageNumber,
+              systemPrompt: summaryPrompt.systemPrompt,
+              userPrompt: summaryPrompt.userPrompt,
+            }),
           },
         );
 
@@ -102,13 +116,24 @@ export default function PageChat({
     return () => {
       ignore = true;
     };
-  }, [documentId, pageNumber]);
+  }, [
+    documentId,
+    pageNumber,
+    summaryPrompt.systemPrompt,
+    summaryPrompt.userPrompt,
+  ]);
 
   useEffect(() => {
     const trimmedSelectedText = selectedText.trim();
     if (!trimmedSelectedText) return;
 
-    setPrompt(trimmedSelectedText);
+    const timer = window.setTimeout(() => {
+      setPrompt(trimmedSelectedText);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [selectedText]);
 
   async function handleSubmit() {
@@ -126,6 +151,8 @@ export default function PageChat({
           pageNumber,
           question: trimmedPrompt,
           selectedText,
+          systemPrompt: qaPrompt.systemPrompt,
+          userPrompt: qaPrompt.userPrompt,
         }),
       });
 

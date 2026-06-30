@@ -37,7 +37,10 @@ export default function PageSummary({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ documentId, pageNumber }),
+            body: JSON.stringify({
+              documentId,
+              pageNumber,
+            }),
           },
         );
         const data = await response.json();

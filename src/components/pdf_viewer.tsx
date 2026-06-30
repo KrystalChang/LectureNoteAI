@@ -5,6 +5,9 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import PageNotes from "./page_notes";
 import PageChat from "./pageChat";
+import AISettingsButton, {
+  loadPromptPreferences,
+} from "./ai_settings_button";
 
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -28,8 +31,10 @@ type SelectedTextState = {
 export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<RightPanelTab>("summary");
+  const [activeTab, setActiveTab] = useState<RightPanelTab>("chat");
   const [selectedText, setSelectedText] = useState<SelectedTextState>(null);
+  const [promptPreferences, setPromptPreferences] =
+    useState(loadPromptPreferences);
   const currentPageSelectedText =
     selectedText?.pageNumber === currentPage ? selectedText.text : "";
   // Map<pageNumber, DOM element> — populated via ref callbacks below.
@@ -126,9 +131,16 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
       <Panel defaultSize={40} minSize={25}>
         <aside className="h-full flex flex-col bg-white border-l border-gray-200">
           <header className="px-4 py-3 border-b border-gray-200 shrink-0">
-            <h2 className="mb-2 text-sm font-semibold text-gray-900">
-              Page {currentPage}
-            </h2>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-gray-900">
+                Page {currentPage}
+              </h2>
+              <AISettingsButton
+                documentId={documentId}
+                preferences={promptPreferences}
+                onPreferencesChange={setPromptPreferences}
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab("chat")}
@@ -157,9 +169,10 @@ export default function PdfViewer({ fileUrl, documentId }: PdfViewerProps) {
                 documentId={documentId}
                 pageNumber={currentPage}
                 selectedText={currentPageSelectedText}
+                promptPreferences={promptPreferences}
               />
             )}
-            s
+
             {activeTab === "notes" && (
               <PageNotes
                 key={currentPage}

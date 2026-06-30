@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 type CreateQARequest = {
   pageNumber: number;
   question: string;
-  selectedText: string;
+  selectedText?: string;
+  systemPrompt?: string;
+  userPrompt?: string;
 };
 
 type RouteParams = {
@@ -16,8 +18,13 @@ type RouteParams = {
 export async function POST(request: Request, { params }: RouteParams) {
   try {
     const { documentId } = await params;
-    const { pageNumber, question, selectedText }: CreateQARequest =
-      await request.json();
+    const {
+      pageNumber,
+      question,
+      selectedText,
+      systemPrompt,
+      userPrompt,
+    }: CreateQARequest = await request.json();
 
     if (!pageNumber || !question?.trim()) {
       return Response.json(
@@ -42,10 +49,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       return Response.json({ error: "Page not found" }, { status: 404 });
     }
 
+    const normalizedSelectedText = selectedText?.trim() ?? "";
+
     const answer = await answerQuestionAboutPage({
       pageText: page.extractedText,
-      selectedText,
-      question,
+      selectedText: normalizedSelectedText,
+      question: question.trim(),
+      systemPrompt,
+      userPrompt,
     });
 
     const qaEntry = await prisma.qAEntry.create({
@@ -55,7 +66,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         },
         pageNumber,
         question: question.trim(),
-        selectedText: selectedText?.trim() ?? "",
+        selectedText: normalizedSelectedText,
         answer,
       },
     });
