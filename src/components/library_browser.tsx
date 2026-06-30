@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import UploadPage from "./pdf_upload";
 import AISettingsButton from "./ai_settings_button";
+import ThemeControls from "./theme_controls";
 
 type Folder = {
   id: string;
@@ -237,7 +238,14 @@ function LibraryContents({
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     title={`Open ${folder.name}`}
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-blue-50 text-blue-600">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded"
+                      style={{
+                        background:
+                          "color-mix(in srgb, var(--accent) 16%, transparent)",
+                        color: "var(--accent)",
+                      }}
+                    >
                       <FolderIcon className="h-5 w-5" aria-hidden="true" />
                     </span>
                     <span className="min-w-0">
@@ -299,7 +307,14 @@ function LibraryContents({
                     className="group flex min-w-0 flex-1 items-center gap-3"
                     title={`Open ${document.originalName}`}
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-red-50 text-red-600">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded"
+                      style={{
+                        background:
+                          "color-mix(in srgb, var(--danger) 16%, transparent)",
+                        color: "var(--danger)",
+                      }}
+                    >
                       <FileText className="h-5 w-5" aria-hidden="true" />
                     </span>
                     <span className="min-w-0">
@@ -612,7 +627,7 @@ export default function LibraryBrowser() {
               }}
               aria-label="New folder"
               title="New folder"
-              className="inline-flex h-9 items-center gap-2 rounded border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="btn btn-ghost"
             >
               <FolderPlus className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">New folder</span>
@@ -622,54 +637,16 @@ export default function LibraryBrowser() {
               onClick={() => setUploadOpen(true)}
               aria-label="Upload PDF"
               title="Upload PDF"
-              className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700"
+              className="btn btn-primary"
             >
               <Upload className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Upload PDF</span>
             </button>
             <AISettingsButton />
+            <ThemeControls />
           </div>
         </div>
       </header>
-
-      <nav
-        className="border-b border-gray-200 bg-white"
-        aria-label="Breadcrumb"
-      >
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-1 overflow-x-auto px-4 text-sm sm:px-6">
-          <button
-            type="button"
-            onClick={() => navigateToPathIndex(-1)}
-            className={`shrink-0 rounded px-2 py-1 ${
-              folderPath.length === 0
-                ? "font-medium text-gray-900"
-                : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            }`}
-          >
-            My Library
-          </button>
-          {folderPath.map((folder, index) => (
-            <span key={folder.id} className="flex min-w-0 items-center gap-1">
-              <ChevronRight
-                className="h-4 w-4 shrink-0 text-gray-300"
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                onClick={() => navigateToPathIndex(index)}
-                className={`max-w-40 truncate rounded px-2 py-1 ${
-                  index === folderPath.length - 1
-                    ? "font-medium text-gray-900"
-                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                }`}
-                title={folder.name}
-              >
-                {folder.name}
-              </button>
-            </span>
-          ))}
-        </div>
-      </nav>
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <h2 className="mb-6 text-xl font-semibold">
@@ -717,14 +694,14 @@ export default function LibraryBrowser() {
                 type="button"
                 onClick={() => setCreateFolderOpen(false)}
                 disabled={creatingFolder}
-                className="h-9 rounded border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={creatingFolder || !folderName.trim()}
-                className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
+                className="btn btn-primary"
               >
                 {creatingFolder && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -778,14 +755,14 @@ export default function LibraryBrowser() {
                 type="button"
                 onClick={() => setRenameTarget(null)}
                 disabled={actionLoading}
-                className="h-9 rounded border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={actionLoading || !renameValue.trim()}
-                className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
+                className="btn btn-primary"
               >
                 {actionLoading && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -839,14 +816,14 @@ export default function LibraryBrowser() {
                 type="button"
                 onClick={() => setMoveTarget(null)}
                 disabled={actionLoading}
-                className="h-9 rounded border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={actionLoading || foldersLoading}
-                className="inline-flex h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300"
+                className="btn btn-primary"
               >
                 {actionLoading && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -879,7 +856,7 @@ export default function LibraryBrowser() {
                 type="button"
                 onClick={() => setDeleteTarget(null)}
                 disabled={actionLoading}
-                className="h-9 rounded border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
@@ -887,7 +864,7 @@ export default function LibraryBrowser() {
                 type="button"
                 onClick={() => void handleDelete()}
                 disabled={actionLoading}
-                className="inline-flex h-9 items-center gap-2 rounded bg-red-600 px-3 text-sm font-medium text-white hover:bg-red-700 disabled:bg-red-300"
+                className="btn btn-danger"
               >
                 {actionLoading && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />

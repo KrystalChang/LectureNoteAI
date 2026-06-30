@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { extractPageTexts } from "@/lib/pdf";
+import { isLikelyImagePage, markImageBasedPages } from "@/lib/page_store";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -74,6 +75,16 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Flag image-dominant / text-empty pages so the client knows to send a
+    // rendered page image for a vision summary instead of empty text.
+    const imageBasedPages = texts
+      .map((text, index) => ({ text, pageNumber: index + 1 }))
+      .filter(({ text }) => isLikelyImagePage(text))
+      .map(({ pageNumber }) => pageNumber);
+    if (imageBasedPages.length > 0) {
+      await markImageBasedPages(document.id, imageBasedPages);
+    }
 
     return Response.json({
       documentId: document.id,

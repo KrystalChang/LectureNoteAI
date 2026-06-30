@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 
 const NoteEditor = dynamic(() => import("./note_editor"), {
   ssr: false,
-  loading: () => <p className="p-4 text-sm text-gray-500">Loading editor...</p>,
+  loading: () => <p className="p-4 text-sm text-muted">載入編輯器中…</p>,
 });
 
 type PageNotesProps = {
@@ -163,37 +163,64 @@ export default function PageNotes({ documentId, pageNumber }: PageNotesProps) {
 
   const statusText = {
     idle: "",
-    pending: "Unsaved changes",
-    saving: "Saving...",
-    saved: "Saved",
-    error: "Save failed",
+    pending: "尚未儲存",
+    saving: "儲存中…",
+    saved: "已儲存",
+    error: "儲存失敗",
+  }[saveStatus];
+
+  const statusDotColor = {
+    idle: "transparent",
+    pending: "var(--text-faint)",
+    saving: "var(--accent)",
+    saved: "#16a34a",
+    error: "var(--danger)",
   }[saveStatus];
 
   return (
     <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-gray-900">Notes</h3>
-        <p
-          className={saveStatus === "error" ? "text-red-600" : "text-gray-400"}
-          aria-live="polite"
-        >
-          {statusText}
-        </p>
+        <h3 className="font-semibold">筆記</h3>
+        {statusText && (
+          <span
+            className="inline-flex items-center gap-1.5 text-xs"
+            style={{
+              color: saveStatus === "error" ? "var(--danger)" : "var(--text-muted)",
+            }}
+            aria-live="polite"
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: statusDotColor }}
+            />
+            {statusText}
+          </span>
+        )}
       </div>
 
-      {loading && <p className="text-gray-500">Loading note...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {loading && <p className="text-muted">載入筆記中…</p>}
+      {error && (
+        <p className="text-sm" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
 
       {!loading && (
-        <section className="overflow-hidden rounded border border-gray-300 bg-white">
+        <section
+          className="overflow-hidden rounded-lg border"
+          style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+        >
           <NoteEditor
             initialMarkdown={initialMarkdown}
             onChange={handleEditorChange}
           />
 
           {note && (
-            <p className="border-t border-gray-200 px-3 py-2 text-xs text-gray-400">
-              Last updated: {new Date(note.updatedAt).toLocaleString()}
+            <p
+              className="border-t px-3 py-2 text-xs text-faint"
+              style={{ borderColor: "var(--border)" }}
+            >
+              最後更新：{new Date(note.updatedAt).toLocaleString("zh-TW")}
             </p>
           )}
         </section>

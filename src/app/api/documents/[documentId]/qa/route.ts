@@ -1,4 +1,9 @@
-import { answerQuestionAboutPage } from "@/lib/ai";
+import {
+  answerQuestionAboutPage,
+  parseImageDataUrl,
+  streamAnswerAboutPage,
+} from "@/lib/ai";
+import { ndjsonResponse } from "@/lib/ndjson";
 import { prisma } from "@/lib/prisma";
 
 type CreateQARequest = {
@@ -7,6 +12,8 @@ type CreateQARequest = {
   selectedText?: string;
   systemPrompt?: string;
   userPrompt?: string;
+  image?: string;
+  stream?: boolean;
 };
 
 type RouteParams = {
@@ -16,61 +23,98 @@ type RouteParams = {
 };
 
 export async function POST(request: Request, { params }: RouteParams) {
-  try {
-    const { documentId } = await params;
-    const {
-      pageNumber,
-      question,
-      selectedText,
-      systemPrompt,
-      userPrompt,
-    }: CreateQARequest = await request.json();
+  const { documentId } = await params;
+  const body: CreateQARequest = await request.json().catch(() => ({}) as CreateQARequest);
+  const {
+    pageNumber,
+    question,
+    selectedText,
+    systemPrompt,
+    userPrompt,
+    stream: wantStream,
+  } = body;
 
-    if (!pageNumber || !question?.trim()) {
-      return Response.json(
-        { error: "Missing required fields" },
-        { status: 400 },
+  const image = parseImageDataUrl(body.image);
+
+  if (!pageNumber || !question?.trim()) {
+    if (wantStream) {
+      return ndjsonResponse(async (emit) =>
+        emit({ type: "error", error: "Missing required fields" }),
       );
     }
+    return Response.json({ error: "Missing required fields" }, { status: 400 });
+  }
 
-    const page = await prisma.pageContent.findUnique({
-      where: {
-        documentId_pageNumber: {
-          documentId,
-          pageNumber,
-        },
-      },
-      select: {
-        extractedText: true,
-      },
-    });
+  const page = await prisma.pageContent.findUnique({
+    where: { documentId_pageNumber: { documentId, pageNumber } },
+    select: { extractedText: true },
+  });
 
-    if (!page) {
-      return Response.json({ error: "Page not found" }, { status: 404 });
+  if (!page) {
+    if (wantStream) {
+      return ndjsonResponse(async (emit) =>
+        emit({ type: "error", error: "Page not found" }),
+      );
     }
+    return Response.json({ error: "Page not found" }, { status: 404 });
+  }
 
-    const normalizedSelectedText = selectedText?.trim() ?? "";
+  const normalizedSelectedText =
+    selectedText?.trim() || (image ? "（圈選圖片提問）" : "");
+  const trimmedQuestion = question.trim();
 
-    const answer = await answerQuestionAboutPage({
-      pageText: page.extractedText,
-      selectedText: normalizedSelectedText,
-      question: question.trim(),
-      systemPrompt,
-      userPrompt,
-    });
-
-    const qaEntry = await prisma.qAEntry.create({
+  async function persist(answer: string) {
+    return prisma.qAEntry.create({
       data: {
-        document: {
-          connect: { id: documentId },
-        },
+        document: { connect: { id: documentId } },
         pageNumber,
-        question: question.trim(),
+        question: trimmedQuestion,
         selectedText: normalizedSelectedText,
         answer,
       },
     });
+  }
 
+  // ---- Streaming response ----
+  if (wantStream) {
+    return ndjsonResponse(async (emit) => {
+      const aiStream = streamAnswerAboutPage({
+        pageText: page.extractedText,
+        selectedText: normalizedSelectedText,
+        question: trimmedQuestion,
+        systemPrompt,
+        userPrompt,
+        image,
+      });
+
+      let full = "";
+      for await (const event of aiStream) {
+        if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "text_delta"
+        ) {
+          full += event.delta.text;
+          emit({ type: "delta", text: event.delta.text });
+        }
+      }
+
+      const finalAnswer = full.trim() || "無法產生回答";
+      const qaEntry = await persist(finalAnswer);
+      emit({ type: "done", qaEntry });
+    });
+  }
+
+  // ---- Non-streaming response ----
+  try {
+    const answer = await answerQuestionAboutPage({
+      pageText: page.extractedText,
+      selectedText: normalizedSelectedText,
+      question: trimmedQuestion,
+      systemPrompt,
+      userPrompt,
+      image,
+    });
+    const qaEntry = await persist(answer);
     return Response.json({ qaEntry });
   } catch (error) {
     console.error("Error creating QA entry:", error);
@@ -92,13 +136,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     const qaEntries = await prisma.qAEntry.findMany({
-      where: {
-        documentId,
-        pageNumber,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
+      where: { documentId, pageNumber },
+      orderBy: { createdAt: "asc" },
     });
 
     return Response.json({ qaEntries });

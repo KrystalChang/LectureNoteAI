@@ -1,46 +1,330 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Theme tokens — semantic colors driven by CSS variables.
+   Light is the default; `.dark` on <html> flips to dark mode.
+   --accent is set at runtime from the user's chosen accent color.
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f3f4f6;
+  --surface-hover: #f9fafb;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --text-faint: #9ca3af;
+
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+  --danger-fg: #ffffff;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --shadow-lg: 0 10px 30px rgba(16, 24, 40, 0.12);
+
+  --radius: 0.625rem;
+
+  --background: var(--bg);
+  --foreground: var(--text);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #0c0d12;
+  --surface: #15171e;
+  --surface-2: #1c1f29;
+  --surface-hover: #20232e;
+  --border: #2a2e3a;
+  --border-strong: #3a3f4d;
+  --text: #e8eaf0;
+  --text-muted: #9aa1b1;
+  --text-faint: #6b7280;
+
+  --accent-fg: #ffffff;
+  --danger: #f87171;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.55);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
-/* Markdown rendering for AI-generated summaries / answers.
-   Replaces what @tailwindcss/typography would normally give us. */
+/* ============================================================
+   Reusable component classes (theme-aware)
+   ============================================================ */
+@layer components {
+  .surface {
+    background: var(--surface);
+    color: var(--text);
+  }
+  .surface-2 {
+    background: var(--surface-2);
+  }
+  .panel {
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      transform 0.15s ease;
+  }
+  .card-hover:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding: 0 0.85rem;
+    border-radius: 0.55rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      opacity 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .btn-primary:not(:disabled):hover {
+    background: color-mix(in srgb, var(--accent) 86%, black);
+  }
+  .btn-ghost {
+    background: var(--surface);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .btn-ghost:not(:disabled):hover {
+    background: var(--surface-hover);
+  }
+  .btn-subtle {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .btn-subtle:not(:disabled):hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .btn-danger {
+    background: var(--danger);
+    color: var(--danger-fg);
+  }
+  .btn-danger:not(:disabled):hover {
+    background: color-mix(in srgb, var(--danger) 86%, black);
+  }
+
+  .input,
+  .textarea {
+    width: 100%;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .input::placeholder,
+  .textarea::placeholder {
+    color: var(--text-faint);
+  }
+  .input:focus,
+  .textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--surface-2);
+    color: var(--text-muted);
+  }
+  .tab {
+    padding: 0.4rem 0.2rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    background: none;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .tab:hover {
+    color: var(--text);
+  }
+  .tab-active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+.text-faint {
+  color: var(--text-faint);
+}
+
+/* ============================================================
+   Dark-mode shim for legacy Tailwind gray utilities.
+   Lets components still written with bg-white / text-gray-* /
+   border-gray-* render correctly in dark mode without a rewrite.
+   Themed components use CSS variables and are unaffected.
+   ============================================================ */
+.dark .bg-white {
+  background-color: var(--surface) !important;
+}
+.dark .bg-gray-50 {
+  background-color: var(--bg) !important;
+}
+.dark .bg-gray-100 {
+  background-color: var(--surface-2) !important;
+}
+.dark .bg-blue-50 {
+  background-color: var(--surface-2) !important;
+}
+.dark .bg-red-50 {
+  background-color: color-mix(in srgb, var(--danger) 18%, transparent) !important;
+}
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: var(--text) !important;
+}
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+.dark .text-blue-600,
+.dark .text-blue-700 {
+  color: var(--accent) !important;
+}
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: var(--border) !important;
+}
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--surface-hover) !important;
+}
+.dark .hover\:border-gray-300:hover,
+.dark .hover\:border-gray-400:hover {
+  border-color: var(--border-strong) !important;
+}
+
+/* Skeleton shimmer for loading states */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--surface-hover) 37%,
+    var(--surface-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.3s ease infinite;
+  border-radius: 0.375rem;
+}
+@keyframes skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* Streaming caret */
+.stream-caret::after {
+  content: "▋";
+  margin-left: 1px;
+  color: var(--accent);
+  animation: blink 1s step-start infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   Markdown rendering for AI summaries / answers (theme-aware)
+   ============================================================ */
 .markdown {
-  color: #374151;
-  line-height: 1.6;
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 0.9rem;
 }
 .markdown h1 {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0.75rem 0 0.5rem;
-  color: #111827;
 }
 .markdown h2 {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0.75rem 0 0.5rem;
-  color: #111827;
 }
 .markdown h3 {
   font-size: 1rem;
   font-weight: 600;
   margin: 0.5rem 0;
-  color: #111827;
 }
 .markdown p {
   margin: 0.5rem 0;
@@ -63,22 +347,22 @@ body {
 }
 .markdown strong {
   font-weight: 600;
-  color: #111827;
 }
 .markdown em {
   font-style: italic;
 }
 .markdown code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  background: #f3f4f6;
+  font-family:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--surface-2);
   padding: 0.125rem 0.3rem;
   border-radius: 0.25rem;
-  font-size: 0.875em;
+  font-size: 0.85em;
 }
 .markdown pre {
-  background: #f3f4f6;
+  background: var(--surface-2);
   padding: 0.75rem;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   overflow-x: auto;
   margin: 0.75rem 0;
 }
@@ -87,30 +371,44 @@ body {
   padding: 0;
 }
 .markdown blockquote {
-  border-left: 3px solid #e5e7eb;
+  border-left: 3px solid var(--border-strong);
   padding-left: 0.75rem;
-  color: #6b7280;
+  color: var(--text-muted);
   margin: 0.75rem 0;
 }
 .markdown a {
-  color: #2563eb;
+  color: var(--accent);
   text-decoration: underline;
 }
 .markdown hr {
   border: 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
   margin: 1rem 0;
 }
 .markdown table {
   border-collapse: collapse;
   margin: 0.75rem 0;
+  font-size: 0.85rem;
 }
 .markdown th,
 .markdown td {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   padding: 0.375rem 0.625rem;
 }
 .markdown th {
-  background: #f9fafb;
+  background: var(--surface-2);
   font-weight: 600;
+}
+
+/* KaTeX math: inherit theme text colour; let wide display equations scroll
+   horizontally rather than overflow the panel. */
+.markdown .katex {
+  color: inherit;
+  font-size: 1.05em;
+}
+.markdown .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  margin: 0.6rem 0;
 }

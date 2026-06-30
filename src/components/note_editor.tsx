@@ -5,6 +5,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { useEffect, useRef } from "react";
+import { useTheme } from "@/lib/theme";
 
 type NoteEditorProps = {
   initialMarkdown: string;
@@ -17,6 +18,7 @@ export default function NoteEditor({
 }: NoteEditorProps) {
   const initialized = useRef(false);
   const editor = useCreateBlockNote();
+  const { resolved } = useTheme();
 
   useEffect(() => {
     if (initialMarkdown.trim()) {
@@ -30,7 +32,7 @@ export default function NoteEditor({
   return (
     <BlockNoteView
       editor={editor}
-      theme="light"
+      theme={resolved}
       onChange={(currentEditor) => {
         if (!initialized.current) return;
         onChange(currentEditor.blocksToMarkdownLossy());

@@ -45,6 +45,13 @@ model PageContent {
   pageNumber    Int
   extractedText String
   summary       String?
+  // Hash of the prompt (system + user + model + image flag) that produced
+  // `summary`. Lets us reuse the cached summary when the prompt is unchanged
+  // instead of regenerating on every page view.
+  summaryPromptHash String?
+  // True when the page has little/no extractable text (image-dominant slide),
+  // so the client should send a rendered page image for a vision summary.
+  isImageBased  Boolean @default(false)
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
