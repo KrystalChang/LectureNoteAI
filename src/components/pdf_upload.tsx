@@ -1,10 +1,40 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle, UploadCloud } from "lucide-react";
+import {
+  DEFAULT_PROMPT_PREFERENCES,
+  DocumentFormat,
+  PromptPreferences,
+  applyDocumentFormat,
+  mergePromptPreferences,
+} from "@/lib/prompt_preferences";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB, per PRD §5.1
+
+const DOCUMENT_FORMATS: Array<{ value: DocumentFormat; label: string }> = [
+  { value: "slides", label: "簡報" },
+  { value: "paper", label: "論文" },
+  { value: "textbook", label: "課本" },
+  { value: "exam", label: "考題" },
+  { value: "custom", label: "自訂" },
+];
+
+const TONES: Array<{ value: PromptPreferences["tone"]; label: string }> = [
+  { value: "detailed", label: "詳細" },
+  { value: "concise", label: "簡潔" },
+  { value: "teaching", label: "教學語氣" },
+];
+
+const SUMMARY_FORMATS: Array<{
+  value: PromptPreferences["summaryFormat"];
+  label: string;
+}> = [
+  { value: "bullets", label: "條列式" },
+  { value: "full", label: "完整說明" },
+  { value: "exam", label: "考前重點整理" },
+];
 
 type UploadPageProps = {
   folderId?: string | null;
@@ -35,9 +65,32 @@ export default function UploadPage({
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [preferences, setPreferences] = useState<PromptPreferences>(
+    DEFAULT_PROMPT_PREFERENCES,
+  );
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
+
+  // Seed the upload dialog with the library-wide general defaults.
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/settings");
+        const data = await response.json();
+        if (!ignore && response.ok && data.preferences) {
+          setPreferences(mergePromptPreferences(data.preferences));
+        }
+      } catch {
+        /* keep defaults on failure */
+      }
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   function validateAndSetFile(f: File | null) {
     setError("");
@@ -71,6 +124,7 @@ export default function UploadPage({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("folderId", folderId ?? "");
+      formData.append("promptPreferences", JSON.stringify(preferences));
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -143,6 +197,112 @@ export default function UploadPage({
           className="hidden"
           onChange={(e) => validateAndSetFile(e.target.files?.[0] ?? null)}
         />
+      </div>
+
+      <div className="mt-4 rounded-lg border border-gray-200 p-4">
+        <p className="text-sm font-semibold text-gray-900">文件格式</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          選擇後會自動帶入建議的口吻與摘要格式，仍可自行調整。
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {DOCUMENT_FORMATS.map((format) => (
+            <button
+              key={format.value}
+              type="button"
+              onClick={() =>
+                setPreferences((current) =>
+                  applyDocumentFormat(current, format.value),
+                )
+              }
+              className={`h-9 rounded border px-2 text-sm ${
+                preferences.documentFormat === format.value
+                  ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
+                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {format.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="mt-3 text-sm font-medium text-blue-600 hover:underline"
+        >
+          {showAdvanced ? "隱藏進階設定" : "調整口吻與摘要格式"}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-3 space-y-4">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-gray-700">口吻</p>
+              <div className="grid grid-cols-3 gap-2">
+                {TONES.map((tone) => (
+                  <button
+                    key={tone.value}
+                    type="button"
+                    onClick={() =>
+                      setPreferences((current) => ({
+                        ...current,
+                        tone: tone.value,
+                      }))
+                    }
+                    className={`h-9 rounded border px-2 text-sm ${
+                      preferences.tone === tone.value
+                        ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
+                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {tone.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-gray-700">
+                摘要格式
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {SUMMARY_FORMATS.map((summaryFormat) => (
+                  <button
+                    key={summaryFormat.value}
+                    type="button"
+                    onClick={() =>
+                      setPreferences((current) => ({
+                        ...current,
+                        summaryFormat: summaryFormat.value,
+                      }))
+                    }
+                    className={`h-9 rounded border px-2 text-sm ${
+                      preferences.summaryFormat === summaryFormat.value
+                        ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
+                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {summaryFormat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="block text-xs font-semibold text-gray-700">
+              額外指令
+              <textarea
+                value={preferences.extraInstructions}
+                onChange={(event) =>
+                  setPreferences((current) => ({
+                    ...current,
+                    extraInstructions: event.target.value,
+                  }))
+                }
+                placeholder="例如：保留英文術語、多舉例說明..."
+                className="mt-1.5 min-h-16 w-full rounded border border-gray-300 p-2 text-sm font-normal outline-none focus:border-blue-500"
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       <button

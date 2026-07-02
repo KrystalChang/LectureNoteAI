@@ -39,6 +39,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     });
 
     const preferences: Partial<PromptPreferences> = {
+      documentFormat: analysis.documentFormat,
       tone: analysis.tone,
       language: "zh-TW",
       summaryFormat: analysis.summaryFormat,

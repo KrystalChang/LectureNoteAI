@@ -1,5 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import {
+  DocumentFormat,
   PromptTone,
   SUGGEST_PROMPT_PREFERENCES_SYSTEM_PROMPT,
   SummaryFormat,
@@ -92,7 +93,7 @@ export async function summaryOnePage(
 ) {
   const message = await client.messages.create({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: resolveSummarySystem(customSystemPrompt),
     messages: [
       {
@@ -119,7 +120,7 @@ export function streamSummaryOnePage(
 ) {
   return client.messages.stream({
     model: MODEL,
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: resolveSummarySystem(customSystemPrompt),
     messages: [
       {
@@ -237,6 +238,7 @@ export function streamAnswerAboutPage(input: {
 
 export type PromptSuggestionAnalysis = {
   topic: string;
+  documentFormat: DocumentFormat;
   tone: PromptTone;
   summaryFormat: SummaryFormat;
   extraInstructions: string;
@@ -299,11 +301,16 @@ function normalizePromptSuggestionAnalysis(
 
   return {
     topic: stringOr(input.topic, "一般講義"),
+    documentFormat: pick(
+      input.documentFormat,
+      ["slides", "paper", "textbook", "exam", "custom"],
+      "custom",
+    ),
     tone: pick(input.tone, ["concise", "detailed", "teaching"], "teaching"),
     summaryFormat: pick(
       input.summaryFormat,
-      ["key-points", "bullets", "exam"],
-      "key-points",
+      ["bullets", "full", "exam"],
+      "full",
     ),
     extraInstructions: stringOr(
       input.extraInstructions,

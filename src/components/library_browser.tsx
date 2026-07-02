@@ -642,7 +642,7 @@ export default function LibraryBrowser() {
               <Upload className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Upload PDF</span>
             </button>
-            <AISettingsButton />
+            <AISettingsButton scope="library" />
             <ThemeControls />
           </div>
         </div>

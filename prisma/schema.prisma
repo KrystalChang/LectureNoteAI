@@ -15,6 +15,13 @@ model Document {
   totalPages     Int?
   uploadedAt     DateTime @default(now())
 
+  // JSON snapshot of this document's PromptPreferences, seeded from the library
+  // defaults at upload time and editable per document. Null = never customised
+  // (fall back to current library defaults). Read/written via the typed Prisma
+  // client in src/lib/prefs_store.ts — run `prisma db push` (regenerates the
+  // client) on the Mac after changing this.
+  promptPreferences String?
+
   folderId String?
   folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
@@ -83,4 +90,13 @@ model Note {
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, pageNumber])
+}
+
+// Single-row table (id = "default") holding the library-wide general prompt
+// defaults that seed every new upload. Read/written via the typed Prisma
+// client in src/lib/prefs_store.ts.
+model LibrarySettings {
+  id              String   @id @default("default")
+  preferencesJson String
+  updatedAt       DateTime @updatedAt
 }

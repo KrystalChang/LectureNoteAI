@@ -4,6 +4,11 @@ import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { extractPageTexts } from "@/lib/pdf";
 import { isLikelyImagePage, markImageBasedPages } from "@/lib/page_store";
+import {
+  getLibraryPreferences,
+  serializePreferences,
+} from "@/lib/prefs_store";
+import { mergePromptPreferences } from "@/lib/prompt_preferences";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -31,6 +36,22 @@ export async function POST(request: Request) {
 
       if (!folder) {
         return Response.json({ error: "Folder not found" }, { status: 404 });
+      }
+    }
+
+    // Prompt preferences for this document: the ones chosen in the upload
+    // dialog if provided, otherwise the current library defaults. Saved as a
+    // per-document snapshot so later changes to library defaults don't silently
+    // rewrite existing documents.
+    const preferencesValue = formData.get("promptPreferences");
+    let documentPreferences = await getLibraryPreferences();
+    if (typeof preferencesValue === "string" && preferencesValue.trim()) {
+      try {
+        documentPreferences = mergePromptPreferences(
+          JSON.parse(preferencesValue),
+        );
+      } catch {
+        // Ignore malformed input and keep the library defaults.
       }
     }
 
@@ -67,6 +88,7 @@ export async function POST(request: Request) {
         filePath,
         totalPages: pageCount,
         folderId,
+        promptPreferences: serializePreferences(documentPreferences),
         pages: {
           create: texts.map((extractedText, index) => ({
             pageNumber: index + 1,
