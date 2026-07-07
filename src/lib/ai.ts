@@ -2,12 +2,14 @@ import { Anthropic } from "@anthropic-ai/sdk";
 import {
   DocumentFormat,
   PromptTone,
-  SUGGEST_PROMPT_PREFERENCES_SYSTEM_PROMPT,
   SummaryFormat,
-  buildPromptSuggestionUserPrompt,
   fillPromptTemplate,
 } from "./prompt_preferences";
 import { SUMMARY_SYSTEM_PROMPT } from "./prompts/summary";
+import {
+  SUGGEST_PROMPT_PREFERENCES_SYSTEM_PROMPT,
+  buildPromptSuggestionUserPrompt,
+} from "./prompts/suggest";
 
 const client = new Anthropic({
   apiKey: process.env["ANTHROPIC_API_KEY"],

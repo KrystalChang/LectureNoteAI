@@ -1,4 +1,15 @@
-import { SUMMARY_SYSTEM_PROMPT } from "./prompts/summary";
+import {
+  DEFAULT_SUMMARY_USER_PROMPT,
+  SUMMARY_SYSTEM_PROMPT,
+  buildFormatDirective,
+  summaryFormatInstructions,
+} from "./prompts/summary";
+import {
+  DEFAULT_QA_SYSTEM_PROMPT,
+  DEFAULT_QA_USER_PROMPT,
+  QA_FORMAT_INSTRUCTION,
+} from "./prompts/qa";
+import { languageInstructions, toneInstructions } from "./prompts/shared";
 
 export type PromptTone = "concise" | "detailed" | "teaching";
 export type PromptLanguage = "zh-TW" | "en";
@@ -30,62 +41,6 @@ export type BuiltPrompt = {
   systemPrompt: string;
   userPrompt: string;
 };
-
-export const PROMPT_PREFERENCES_STORAGE_KEY = "lectureNoteAi.promptPreferences";
-
-export const DEFAULT_SUMMARY_USER_PROMPT =
-  "請根據以下 PDF 頁面內容產生摘要。\n\n頁面內容：\n{{pageText}}";
-
-export const DEFAULT_QA_SYSTEM_PROMPT =
-  "你是一位專業的學術助理。請根據講義頁面內容與使用者選取的文字回答問題。只能根據提供內容回答，不要編造。";
-
-export const DEFAULT_QA_USER_PROMPT =
-  "請根據以下 PDF 內容回答問題。\n\n當前頁內容：\n{{pageText}}\n\n使用者選取文字：\n{{selectedText}}\n\n使用者問題：\n{{question}}";
-
-export const SUGGEST_PROMPT_PREFERENCES_SYSTEM_PROMPT = [
-  "你是 LectureNoteAI 的文件分析器。",
-  "請根據 PDF 的標題與前五頁文字，為學習助理推薦 prompt preferences。",
-  "先判斷文件類型（documentFormat）：簡報投影片=slides、學術論文=paper、課本教材=textbook、考卷或題目=exam；都不像則用 custom。",
-  "輸出必須是有效 JSON，不要加 markdown code fence。",
-  "語言設定不用判斷，產品預設一律使用繁體中文。",
-].join("\n");
-
-export function buildPromptSuggestionUserPrompt(input: {
-  documentName: string;
-  pages: Array<{
-    pageNumber: number;
-    extractedText: string;
-  }>;
-}) {
-  const previewText = input.pages
-    .slice(0, 5)
-    .map((page) => {
-      const pageText = page.extractedText.trim().slice(0, 6000);
-      return `# Page ${page.pageNumber}\n${pageText}`;
-    })
-    .join("\n\n");
-
-  return [
-    `文件名稱：${input.documentName}`,
-    "",
-    "前五頁內容：",
-    previewText || "No extracted text.",
-    "",
-    "請回傳 JSON，格式如下：",
-    `{
-  "topic": "文件主題，10 到 30 字",
-  "documentFormat": "slides | paper | textbook | exam | custom",
-  "tone": "concise | detailed | teaching",
-  "summaryFormat": "bullets | full | exam",
-  "extraInstructions": "給 AI 的繁中補充指令，最多 4 句",
-  "hasDenseTechnicalContent": true,
-  "looksExamOrLecture": true,
-  "hasMathContent": false,
-  "hasCodeContent": false,
-  "reason": "用繁體中文解釋為何如此建議，1 到 2 句"
-}`,
-  ].join("\n");
-}
 
 /**
  * When the user picks a document format, tone + summary format are auto-filled
@@ -138,60 +93,6 @@ export const DEFAULT_PROMPT_PREFERENCES: PromptPreferences = {
   customQASystemPrompt: DEFAULT_QA_SYSTEM_PROMPT,
   customQAUserPrompt: DEFAULT_QA_USER_PROMPT,
 };
-
-const toneInstructions: Record<PromptTone, string> = {
-  concise: "回答語氣：簡潔。請優先給出直接結論，避免冗長鋪陳。",
-  detailed: "回答語氣：詳細。請補足必要背景、條件、步驟與關鍵細節。",
-  teaching:
-    "回答語氣：教學式。請像家教一樣拆解概念，必要時用簡單例子幫助理解。",
-};
-
-const languageInstructions: Record<PromptLanguage, string> = {
-  "zh-TW": "輸出語言：繁體中文。專有名詞可保留英文並補充中文說明。",
-  en: "Output language: English. Keep technical terms precise and explain them clearly.",
-};
-
-const summaryFormatInstructions: Record<SummaryFormat, string> = {
-  bullets:
-    "摘要格式：條列式。請先給一句主旨，再用清楚的 bullet points 列出重點，每點精簡。",
-  full:
-    "摘要格式：完整說明。請用段落把本頁內容說清楚，涵蓋重要細節、前提與前後關係，必要時搭配少量條列。",
-  exam: "摘要格式：考前重點整理。請標出可能會考的定義、公式、步驟、比較與易混淆處。",
-};
-
-export const DOCUMENT_FORMAT_LABELS: Record<DocumentFormat, string> = {
-  slides: "簡報",
-  paper: "論文",
-  textbook: "課本",
-  exam: "考題",
-  custom: "文件",
-};
-
-const toneLabels: Record<PromptTone, string> = {
-  concise: "簡潔",
-  detailed: "詳細",
-  teaching: "教學",
-};
-
-const summaryFormatLabels: Record<SummaryFormat, string> = {
-  bullets: "條列式",
-  full: "完整說明",
-  exam: "考前重點整理",
-};
-
-/**
- * A single directive tying the chosen document format, tone, and summary
- * format together, e.g. 「這是一份論文文件，請讀取後用詳細的口吻，產出完整說明的內容。」
- */
-function buildFormatDirective(preferences: PromptPreferences): string {
-  const tone = toneLabels[preferences.tone];
-  const format = summaryFormatLabels[preferences.summaryFormat];
-  if (preferences.documentFormat === "custom") {
-    return `請讀取本頁內容後，用${tone}的口吻，產出${format}的內容。`;
-  }
-  const docLabel = DOCUMENT_FORMAT_LABELS[preferences.documentFormat];
-  return `這是一份${docLabel}文件，請讀取本頁內容後，用${tone}的口吻，產出${format}的內容。`;
-}
 
 export function mergePromptPreferences(value: unknown): PromptPreferences {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -283,7 +184,7 @@ export function buildQAPrompt(preferences: PromptPreferences): BuiltPrompt {
       DEFAULT_QA_SYSTEM_PROMPT,
       toneInstructions[preferences.tone],
       languageInstructions[preferences.language],
-      "回答格式：請使用 Markdown。若問題需要步驟，請分點說明。",
+      QA_FORMAT_INSTRUCTION,
       preferences.extraInstructions.trim()
         ? `額外指令：${preferences.extraInstructions.trim()}`
         : "",
