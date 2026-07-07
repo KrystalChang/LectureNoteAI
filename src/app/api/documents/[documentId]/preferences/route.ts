@@ -5,6 +5,7 @@ import {
   saveDocumentPreferences,
 } from "@/lib/prefs_store";
 import { mergePromptPreferences } from "@/lib/prompt_preferences";
+import { getUserId } from "@/lib/auth_helpers";
 
 type RouteContext = {
   params: Promise<{
@@ -14,10 +15,15 @@ type RouteContext = {
 
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { documentId } = await params;
 
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
+    const document = await prisma.document.findFirst({
+      where: { id: documentId, userId },
       select: { id: true },
     });
     if (!document) {
@@ -25,7 +31,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
 
     const own = await getDocumentPreferences(documentId);
-    const preferences = own ?? (await getLibraryPreferences());
+    const preferences = own ?? (await getLibraryPreferences(userId));
 
     return Response.json({
       preferences,
@@ -42,10 +48,15 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
 export async function PUT(request: Request, { params }: RouteContext) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { documentId } = await params;
 
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
+    const document = await prisma.document.findFirst({
+      where: { id: documentId, userId },
       select: { id: true },
     });
     if (!document) {

@@ -22,9 +22,10 @@ model User {
   sessions Session[]
 
   // App-owned data
-  documents Document[]
-  folders   Folder[]
-  usage     UsageCounter[]
+  documents       Document[]
+  folders         Folder[]
+  usage           UsageCounter[]
+  librarySettings LibrarySettings?
 
   createdAt DateTime @default(now())
 }
@@ -172,11 +173,13 @@ model Note {
   @@unique([documentId, pageNumber])
 }
 
-// Single-row table (id = "default") holding the library-wide general prompt
-// defaults that seed every new upload. Read/written via the typed Prisma
-// client in src/lib/prefs_store.ts.
+// Per-user general prompt defaults that seed every new upload. One row per
+// user. Read/written via the typed Prisma client in src/lib/prefs_store.ts.
 model LibrarySettings {
-  id              String   @id @default("default")
+  id              String   @id @default(uuid())
+  userId          String   @unique
   preferencesJson String
   updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

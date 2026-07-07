@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
+import { getUserId } from "@/lib/auth_helpers";
 
 type RouteContext = {
   params: Promise<{
@@ -8,11 +9,17 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { documentId } = await params;
 
-  const document = await prisma.document.findUnique({
+  const document = await prisma.document.findFirst({
     where: {
       id: documentId,
+      userId,
     },
   });
 

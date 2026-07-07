@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getUserId } from "@/lib/auth_helpers";
 
 type RouteContext = {
   params: Promise<{
@@ -8,6 +9,11 @@ type RouteContext = {
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { folderId } = await params;
     const body: unknown = await request.json();
 
@@ -20,8 +26,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return Response.json({ error: "Folder name is required" }, { status: 400 });
     }
 
-    const existingFolder = await prisma.folder.findUnique({
-      where: { id: folderId },
+    const existingFolder = await prisma.folder.findFirst({
+      where: { id: folderId, userId },
       select: { id: true },
     });
 
@@ -43,9 +49,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { folderId } = await params;
-    const folder = await prisma.folder.findUnique({
-      where: { id: folderId },
+    const folder = await prisma.folder.findFirst({
+      where: { id: folderId, userId },
       select: { id: true },
     });
 

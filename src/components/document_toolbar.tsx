@@ -11,15 +11,18 @@ import {
   Loader2,
 } from "lucide-react";
 import ThemeControls from "./theme_controls";
+import UserMenu, { type SessionUser } from "./user_menu";
 
 type DocumentToolbarProps = {
   documentId: string;
   title: string;
+  user?: SessionUser | null;
 };
 
 export default function DocumentToolbar({
   documentId,
   title,
+  user,
 }: DocumentToolbarProps) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -130,6 +133,7 @@ export default function DocumentToolbar({
         </div>
 
         <ThemeControls />
+        <UserMenu user={user} />
       </div>
     </header>
   );

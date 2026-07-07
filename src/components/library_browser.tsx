@@ -20,6 +20,7 @@ import {
 import UploadPage from "./pdf_upload";
 import AISettingsButton from "./ai_settings_button";
 import ThemeControls from "./theme_controls";
+import UserMenu, { type SessionUser } from "./user_menu";
 
 type Folder = {
   id: string;
@@ -420,7 +421,11 @@ function flattenFolders(
     ]);
 }
 
-export default function LibraryBrowser() {
+export default function LibraryBrowser({
+  user,
+}: {
+  user?: SessionUser | null;
+}) {
   const [folderPath, setFolderPath] = useState<FolderPathItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
@@ -644,6 +649,7 @@ export default function LibraryBrowser() {
             </button>
             <AISettingsButton scope="library" />
             <ThemeControls />
+            <UserMenu user={user} />
           </div>
         </div>
       </header>

@@ -7,6 +7,7 @@ import {
   isLikelyImagePage,
   savePageSummary,
 } from "@/lib/page_store";
+import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
 
 type RouteParams = {
   params: Promise<{
@@ -17,6 +18,15 @@ type RouteParams = {
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { documentId, pageNum } = await params;
+
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await userOwnsDocument(documentId, userId))) {
+    return Response.json({ error: "Document not found" }, { status: 404 });
+  }
+
   const body = await request.json().catch(() => ({}));
 
   const pageNumber = Number(pageNum) || Number(body?.pageNumber);

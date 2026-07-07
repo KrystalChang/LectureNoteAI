@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
+import { getUserId } from "@/lib/auth_helpers";
 
 type RouteContext = {
   params: Promise<{
@@ -8,9 +9,14 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, { params }: RouteContext) {
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { documentId } = await params;
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
+  const document = await prisma.document.findFirst({
+    where: { id: documentId, userId },
   });
 
   if (!document) {
@@ -26,6 +32,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { documentId } = await params;
     const body: unknown = await request.json();
 
@@ -58,8 +69,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           : null;
 
       if (folderId) {
-        const folder = await prisma.folder.findUnique({
-          where: { id: folderId },
+        const folder = await prisma.folder.findFirst({
+          where: { id: folderId, userId },
           select: { id: true },
         });
 
@@ -75,8 +86,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return Response.json({ error: "No changes provided" }, { status: 400 });
     }
 
-    const existingDocument = await prisma.document.findUnique({
-      where: { id: documentId },
+    const existingDocument = await prisma.document.findFirst({
+      where: { id: documentId, userId },
       select: { id: true },
     });
 
@@ -105,9 +116,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { documentId } = await params;
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
+    const document = await prisma.document.findFirst({
+      where: { id: documentId, userId },
       select: { id: true, filePath: true },
     });
 

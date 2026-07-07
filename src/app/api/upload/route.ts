@@ -9,11 +9,18 @@ import {
   serializePreferences,
 } from "@/lib/prefs_store";
 import { mergePromptPreferences } from "@/lib/prompt_preferences";
+import { auth } from "@/auth";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const formData = await request.formData();
     const file = formData.get("file");
     const folderIdValue = formData.get("folderId");
@@ -29,8 +36,8 @@ export async function POST(request: Request) {
     const folderId = folderIdValue?.trim() || null;
 
     if (folderId) {
-      const folder = await prisma.folder.findUnique({
-        where: { id: folderId },
+      const folder = await prisma.folder.findFirst({
+        where: { id: folderId, userId },
         select: { id: true },
       });
 
@@ -44,7 +51,7 @@ export async function POST(request: Request) {
     // per-document snapshot so later changes to library defaults don't silently
     // rewrite existing documents.
     const preferencesValue = formData.get("promptPreferences");
-    let documentPreferences = await getLibraryPreferences();
+    let documentPreferences = await getLibraryPreferences(userId);
     if (typeof preferencesValue === "string" && preferencesValue.trim()) {
       try {
         documentPreferences = mergePromptPreferences(
@@ -88,6 +95,7 @@ export async function POST(request: Request) {
         filePath,
         totalPages: pageCount,
         folderId,
+        userId,
         promptPreferences: serializePreferences(documentPreferences),
         pages: {
           create: texts.map((extractedText, index) => ({

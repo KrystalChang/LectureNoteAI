@@ -1,5 +1,6 @@
 import { compileNotes, notesToMarkdown } from "@/lib/export_notes";
 import { buildDocx } from "@/lib/docx_export";
+import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
 
 type RouteParams = {
   params: Promise<{ documentId: string }>;
@@ -13,6 +14,15 @@ function asciiFallbackName(title: string, ext: string) {
 
 export async function GET(request: Request, { params }: RouteParams) {
   const { documentId } = await params;
+
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await userOwnsDocument(documentId, userId))) {
+    return Response.json({ error: "Document not found" }, { status: 404 });
+  }
+
   const { searchParams } = new URL(request.url);
   const format = (searchParams.get("format") || "json").toLowerCase();
 

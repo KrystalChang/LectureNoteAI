@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
 
 type RouteParams = {
   params: Promise<{
@@ -14,6 +15,15 @@ type UpdateNoteRequest = {
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const { documentId, pageNum } = await params;
+
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!(await userOwnsDocument(documentId, userId))) {
+      return Response.json({ error: "Document not found" }, { status: 404 });
+    }
+
     const pageNumber = Number(pageNum);
     const { content }: UpdateNoteRequest = await request.json();
 
@@ -55,6 +65,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { documentId, pageNum } = await params;
+
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!(await userOwnsDocument(documentId, userId))) {
+      return Response.json({ error: "Document not found" }, { status: 404 });
+    }
     const pageNumber = Number(pageNum);
 
     if (!Number.isInteger(pageNumber) || pageNumber < 1) {

@@ -14,8 +14,6 @@ import {
  * Mac (which regenerates the client) before these types resolve.
  */
 
-const LIBRARY_SETTINGS_ID = "default";
-
 function parsePreferences(json: string | null | undefined): PromptPreferences {
   if (!json) return DEFAULT_PROMPT_PREFERENCES;
   try {
@@ -25,23 +23,26 @@ function parsePreferences(json: string | null | undefined): PromptPreferences {
   }
 }
 
-/** Library-wide general defaults; falls back to DEFAULT when unset. */
-export async function getLibraryPreferences(): Promise<PromptPreferences> {
+/** A user's general defaults; falls back to DEFAULT when unset. */
+export async function getLibraryPreferences(
+  userId: string,
+): Promise<PromptPreferences> {
   const row = await prisma.librarySettings.findUnique({
-    where: { id: LIBRARY_SETTINGS_ID },
+    where: { userId },
     select: { preferencesJson: true },
   });
   return parsePreferences(row?.preferencesJson);
 }
 
 export async function saveLibraryPreferences(
+  userId: string,
   preferences: PromptPreferences,
 ): Promise<void> {
   const json = JSON.stringify(mergePromptPreferences(preferences));
   await prisma.librarySettings.upsert({
-    where: { id: LIBRARY_SETTINGS_ID },
+    where: { userId },
     update: { preferencesJson: json },
-    create: { id: LIBRARY_SETTINGS_ID, preferencesJson: json },
+    create: { userId, preferencesJson: json },
   });
 }
 
@@ -73,7 +74,14 @@ export async function getEffectiveDocumentPreferences(
   documentId: string,
 ): Promise<PromptPreferences> {
   const own = await getDocumentPreferences(documentId);
-  return own ?? (await getLibraryPreferences());
+  if (own) return own;
+  // Fall back to the document owner's library defaults.
+  const doc = await prisma.document.findUnique({
+    where: { id: documentId },
+    select: { userId: true },
+  });
+  if (!doc) return DEFAULT_PROMPT_PREFERENCES;
+  return getLibraryPreferences(doc.userId);
 }
 
 export async function saveDocumentPreferences(

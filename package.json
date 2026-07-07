@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
+    "@auth/prisma-adapter": "^2.11.2",
     "@blocknote/core": "^0.51.4",
     "@blocknote/mantine": "^0.51.4",
     "@blocknote/react": "^0.51.4",
@@ -23,6 +24,7 @@
     "lucide-react": "^1.21.0",
     "marked": "^15.0.12",
     "next": "16.2.4",
+    "next-auth": "^5.0.0-beta.31",
     "pdfjs-dist": "^5.4.296",
     "prisma": "^6.19.3",
     "react": "19.2.4",

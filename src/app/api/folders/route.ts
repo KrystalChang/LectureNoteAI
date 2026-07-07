@@ -1,14 +1,21 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const requestUrl = new URL(request.url);
     const includeAll = requestUrl.searchParams.get("all") === "true";
     const parentIdParam = requestUrl.searchParams.get("parentId");
     const parentId = parentIdParam?.trim() || null;
 
     const folders = await prisma.folder.findMany({
-      where: includeAll ? undefined : { parentId },
+      where: includeAll ? { userId } : { userId, parentId },
       select: {
         id: true,
         name: true,
@@ -40,6 +47,12 @@ type CreateFolderRequest = {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const { name, parentId }: CreateFolderRequest = await request.json();
     const trimmedName = typeof name === "string" ? name.trim() : "";
 
@@ -57,8 +70,8 @@ export async function POST(request: Request) {
     const normalizedParentId = parentId?.trim() || null;
 
     if (normalizedParentId) {
-      const parentFolder = await prisma.folder.findUnique({
-        where: { id: normalizedParentId },
+      const parentFolder = await prisma.folder.findFirst({
+        where: { id: normalizedParentId, userId },
         select: { id: true },
       });
 
@@ -71,6 +84,7 @@ export async function POST(request: Request) {
       data: {
         name: trimmedName,
         parentId: normalizedParentId,
+        userId,
       },
     });
 

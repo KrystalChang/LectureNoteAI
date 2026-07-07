@@ -1,5 +1,10 @@
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 
+// Postgres text columns reject NUL bytes (0x00), which PDF text extraction can
+// emit. SQLite tolerated them; Postgres does not. Built via fromCharCode to
+// avoid a literal NUL / escape sequence in source.
+const NUL = String.fromCharCode(0);
+
 export async function extractPageTexts(buffer: Buffer): Promise<{
   pageCount: number;
   texts: string[];
@@ -19,6 +24,8 @@ export async function extractPageTexts(buffer: Buffer): Promise<{
         .filter((item): item is TextItem => "str" in item)
         .map((item) => item.str)
         .join(" ")
+        .split(NUL)
+        .join("")
         .trim();
       texts.push(text);
     }

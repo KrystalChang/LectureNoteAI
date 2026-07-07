@@ -5,6 +5,7 @@ import {
 } from "@/lib/ai";
 import { ndjsonResponse } from "@/lib/ndjson";
 import { prisma } from "@/lib/prisma";
+import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
 
 type CreateQARequest = {
   pageNumber: number;
@@ -24,6 +25,15 @@ type RouteParams = {
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { documentId } = await params;
+
+  const userId = await getUserId();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!(await userOwnsDocument(documentId, userId))) {
+    return Response.json({ error: "Document not found" }, { status: 404 });
+  }
+
   const body: CreateQARequest = await request.json().catch(() => ({}) as CreateQARequest);
   const {
     pageNumber,
@@ -128,6 +138,15 @@ export async function POST(request: Request, { params }: RouteParams) {
 export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { documentId } = await params;
+
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!(await userOwnsDocument(documentId, userId))) {
+      return Response.json({ error: "Document not found" }, { status: 404 });
+    }
+
     const { searchParams } = new URL(request.url);
     const pageNumber = Number(searchParams.get("pageNumber"));
 

@@ -1,6 +1,7 @@
 import { suggestPromptPreferencesFromDocument } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { PromptPreferences } from "@/lib/prompt_preferences";
+import { getUserId } from "@/lib/auth_helpers";
 
 type RouteParams = {
   params: Promise<{
@@ -10,10 +11,15 @@ type RouteParams = {
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { documentId } = await params;
 
-    const document = await prisma.document.findUnique({
-      where: { id: documentId },
+    const document = await prisma.document.findFirst({
+      where: { id: documentId, userId },
       select: {
         originalName: true,
         pages: {
