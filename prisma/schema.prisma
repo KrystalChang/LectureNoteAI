@@ -3,8 +3,80 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// Auth.js (NextAuth v5) — Prisma adapter models
+// ============================================================
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts Account[]
+  sessions Session[]
+
+  // App-owned data
+  documents Document[]
+  folders   Folder[]
+  usage     UsageCounter[]
+
+  createdAt DateTime @default(now())
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Per-user daily usage counter, guards the shared Anthropic API key bill.
+// `date` is a YYYY-MM-DD string in a fixed timezone; one row per user per day.
+model UsageCounter {
+  id     String @id @default(uuid())
+  userId String
+  date   String
+  count  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }
 
 model Document {
@@ -25,11 +97,15 @@ model Document {
   folderId String?
   folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   pages PageContent[]
   qa    QAEntry[]
   note  Note[]
 
   @@index([folderId])
+  @@index([userId])
 }
 
 model Folder {
@@ -43,7 +119,11 @@ model Folder {
   children  Folder[]   @relation("FolderTree")
   documents Document[]
 
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([parentId])
+  @@index([userId])
 }
 
 model PageContent {
