@@ -658,6 +658,7 @@ export default function LibraryBrowser({
         <h2 className="mb-6 text-xl font-semibold">
           {currentFolder?.name ?? "My Library"}
         </h2>
+
         <LibraryContents
           key={`${currentFolderId ?? "root"}-${refreshKey}`}
           folderId={currentFolderId}
