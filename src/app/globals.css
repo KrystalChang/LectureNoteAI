@@ -195,6 +195,20 @@ body {
     background: var(--surface-2);
     color: var(--text-muted);
   }
+  /* Selectable option chips (document format / tone pickers) */
+  .chip-selected {
+    border-color: var(--accent) !important;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+  }
+  .chip-unselected {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .chip-unselected:hover {
+    background: var(--surface-hover);
+  }
+
   .tab {
     padding: 0.4rem 0.2rem;
     font-size: 0.875rem;

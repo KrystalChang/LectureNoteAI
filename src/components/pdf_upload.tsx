@@ -99,12 +99,12 @@ export default function UploadPage({
       return;
     }
     if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
-      setError("Only PDF files are accepted.");
+      setError("目前僅支援 PDF 檔案。");
       setFile(null);
       return;
     }
     if (f.size > MAX_FILE_SIZE) {
-      setError(`File too large (${formatBytes(f.size)}). Max size is 50 MB.`);
+      setError(`檔案過大（${formatBytes(f.size)}），上限為 50 MB。`);
       setFile(null);
       return;
     }
@@ -113,7 +113,7 @@ export default function UploadPage({
 
   async function handleUpload() {
     if (!file) {
-      setError("Please select a PDF file first.");
+      setError("請先選擇一份 PDF 檔案。");
       return;
     }
 
@@ -134,7 +134,7 @@ export default function UploadPage({
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Upload failed");
+        setError(data.error || "上傳失敗，請稍後再試。");
         return;
       }
 
@@ -147,7 +147,7 @@ export default function UploadPage({
         router.push(`/documents/${data.documentId}`);
       }
     } catch {
-      setError("Something went wrong.");
+      setError("網路錯誤，請稍後再試。");
     } finally {
       setIsUploading(false);
     }
@@ -167,26 +167,34 @@ export default function UploadPage({
           setIsDragging(false);
           validateAndSetFile(e.dataTransfer.files?.[0] ?? null);
         }}
-        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 cursor-pointer transition-colors ${
-          isDragging
-            ? "border-blue-500 bg-blue-50"
-            : "border-gray-300 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"
-        }`}
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 transition-colors"
+        style={{
+          borderColor: isDragging ? "var(--accent)" : "var(--border-strong)",
+          background: isDragging
+            ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+            : "var(--surface-2)",
+        }}
       >
-        <UploadCloud className="h-10 w-10 text-gray-400" aria-hidden="true" />
+        <UploadCloud
+          className="h-10 w-10"
+          style={{ color: isDragging ? "var(--accent)" : "var(--text-faint)" }}
+          aria-hidden="true"
+        />
 
         {file ? (
           <div className="text-center">
-            <p className="font-medium text-gray-900">{file.name}</p>
-            <p className="text-sm text-gray-500">{formatBytes(file.size)}</p>
+            <p className="font-medium">{file.name}</p>
+            <p className="text-sm text-muted">{formatBytes(file.size)}</p>
           </div>
         ) : (
           <div className="text-center">
-            <p className="text-gray-700">
-              <span className="font-medium text-blue-600">Click to upload</span>{" "}
-              or drag and drop
+            <p>
+              <span className="font-medium" style={{ color: "var(--accent)" }}>
+                點擊選擇檔案
+              </span>
+              ，或直接拖曳到這裡
             </p>
-            <p className="text-sm text-gray-500">PDF only, up to 50 MB</p>
+            <p className="mt-0.5 text-sm text-muted">限 PDF，最大 50 MB</p>
           </div>
         )}
 
@@ -216,8 +224,8 @@ export default function UploadPage({
               }
               className={`h-9 rounded border px-2 text-sm ${
                 preferences.documentFormat === format.value
-                  ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
-                  : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                  ? "chip-selected font-medium"
+                  : "chip-unselected"
               }`}
             >
               {format.label}
@@ -250,8 +258,8 @@ export default function UploadPage({
                     }
                     className={`h-9 rounded border px-2 text-sm ${
                       preferences.tone === tone.value
-                        ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
-                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                        ? "chip-selected font-medium"
+                        : "chip-unselected"
                     }`}
                   >
                     {tone.label}
@@ -277,8 +285,8 @@ export default function UploadPage({
                     }
                     className={`h-9 rounded border px-2 text-sm ${
                       preferences.summaryFormat === summaryFormat.value
-                        ? "border-blue-600 bg-blue-50 font-medium text-blue-700"
-                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                        ? "chip-selected font-medium"
+                        : "chip-unselected"
                     }`}
                   >
                     {summaryFormat.label}
@@ -298,7 +306,7 @@ export default function UploadPage({
                   }))
                 }
                 placeholder="例如：保留英文術語、多舉例說明..."
-                className="mt-1.5 min-h-16 w-full rounded border border-gray-300 p-2 text-sm font-normal outline-none focus:border-blue-500"
+                className="textarea mt-1.5 min-h-16 font-normal"
               />
             </label>
           </div>
@@ -308,16 +316,18 @@ export default function UploadPage({
       <button
         onClick={handleUpload}
         disabled={!file || isUploading}
-        className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white shadow-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        className="btn btn-primary mt-4 h-11 w-full"
       >
         {isUploading && (
           <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
         )}
-        {isUploading ? "Uploading..." : "Upload"}
+        {isUploading ? "上傳並解析中…" : "開始上傳"}
       </button>
 
       {error && (
-        <p className="mt-3 text-sm text-red-600 text-center">{error}</p>
+        <p className="mt-3 text-center text-sm" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
       )}
     </div>
   );

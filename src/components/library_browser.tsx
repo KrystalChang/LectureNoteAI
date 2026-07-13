@@ -54,6 +54,7 @@ type LibraryContentsProps = {
   onRename: (target: ActionTarget) => void;
   onMoveDocument: (document: DocumentItem) => void;
   onDelete: (target: ActionTarget) => void;
+  onUpload?: () => void;
 };
 
 const dateFormatter = new Intl.DateTimeFormat("zh-TW", {
@@ -63,8 +64,8 @@ const dateFormatter = new Intl.DateTimeFormat("zh-TW", {
 });
 
 function formatPageCount(totalPages: number | null) {
-  if (totalPages === null) return "Unknown pages";
-  return `${totalPages} ${totalPages === 1 ? "page" : "pages"}`;
+  if (totalPages === null) return "頁數未知";
+  return `${totalPages} 頁`;
 }
 
 type ItemMenuProps = {
@@ -83,8 +84,8 @@ function ItemMenu({ menuKey, openMenuKey, onToggle, children }: ItemMenuProps) {
         type="button"
         onClick={() => onToggle(menuKey)}
         className="flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-        aria-label="More actions"
-        title="More actions"
+        aria-label="更多動作"
+        title="更多動作"
         aria-expanded={open}
       >
         <MoreVertical className="h-4 w-4" aria-hidden="true" />
@@ -131,6 +132,7 @@ function LibraryContents({
   onRename,
   onMoveDocument,
   onDelete,
+  onUpload,
 }: LibraryContentsProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -162,10 +164,10 @@ function LibraryContents({
         if (ignore) return;
 
         if (!foldersResponse.ok) {
-          throw new Error(foldersData.error || "Failed to fetch folders");
+          throw new Error(foldersData.error || "無法載入資料夾");
         }
         if (!documentsResponse.ok) {
-          throw new Error(documentsData.error || "Failed to fetch documents");
+          throw new Error(documentsData.error || "無法載入講義");
         }
 
         setFolders(foldersData.folders);
@@ -175,7 +177,7 @@ function LibraryContents({
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Failed to load library",
+              : "無法載入書庫，請重新整理",
           );
         }
       } finally {
@@ -197,20 +199,45 @@ function LibraryContents({
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-16 text-sm text-gray-500">
-        <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-        Loading library...
+      <div className="grid grid-cols-1 gap-3 py-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="card flex items-center gap-3 p-3">
+            <div className="skeleton h-10 w-10 shrink-0 rounded" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="skeleton h-3 w-3/4" />
+              <div className="skeleton h-2.5 w-1/2" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
-  if (error) return <p className="py-12 text-sm text-red-600">{error}</p>;
+  if (error)
+    return (
+      <p className="py-12 text-sm" style={{ color: "var(--danger)" }}>
+        {error}
+      </p>
+    );
 
   if (folders.length === 0 && documents.length === 0) {
     return (
       <div className="flex flex-col items-center py-20 text-center">
-        <FolderOpen className="h-10 w-10 text-gray-300" aria-hidden="true" />
-        <p className="mt-3 font-medium text-gray-700">This folder is empty</p>
+        <FolderOpen className="h-10 w-10 text-faint" aria-hidden="true" />
+        <p className="mt-3 font-medium">這裡還沒有講義</p>
+        <p className="mt-1 text-sm text-muted">
+          上傳一份 PDF，AI 就會開始逐頁摘要。
+        </p>
+        {onUpload && (
+          <button
+            type="button"
+            onClick={onUpload}
+            className="btn btn-primary mt-5"
+          >
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            上傳講義
+          </button>
+        )}
       </div>
     );
   }
@@ -220,7 +247,7 @@ function LibraryContents({
       {folders.length > 0 && (
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase text-gray-500">
-            Folders
+            資料夾
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {folders.map((folder) => {
@@ -231,13 +258,13 @@ function LibraryContents({
               return (
                 <article
                   key={folder.id}
-                  className="relative flex min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white p-3 hover:border-gray-300"
+                  className="card card-hover relative flex min-w-0 items-center gap-2 p-3"
                 >
                   <button
                     type="button"
                     onClick={() => onOpenFolder(folder)}
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                    title={`Open ${folder.name}`}
+                    title={`開啟 ${folder.name}`}
                   >
                     <span
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded"
@@ -254,7 +281,7 @@ function LibraryContents({
                         {folder.name}
                       </span>
                       <span className="mt-0.5 block text-xs text-gray-500">
-                        {itemCount} {itemCount === 1 ? "item" : "items"}
+                        {itemCount} 個項目
                       </span>
                     </span>
                   </button>
@@ -272,14 +299,14 @@ function LibraryContents({
                       onClick={() => closeMenuAnd(() => onRename(target))}
                     >
                       <FolderPen className="h-4 w-4" aria-hidden="true" />
-                      Rename
+                      重新命名
                     </MenuButton>
                     <MenuButton
                       destructive
                       onClick={() => closeMenuAnd(() => onDelete(target))}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      Delete
+                      刪除
                     </MenuButton>
                   </ItemMenu>
                 </article>
@@ -292,7 +319,7 @@ function LibraryContents({
       {documents.length > 0 && (
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase text-gray-500">
-            PDFs
+            講義
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {documents.map((document) => {
@@ -301,12 +328,12 @@ function LibraryContents({
               return (
                 <article
                   key={document.id}
-                  className="relative flex min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white p-3 hover:border-gray-300"
+                  className="card card-hover relative flex min-w-0 items-center gap-2 p-3"
                 >
                   <Link
                     href={`/documents/${document.id}`}
                     className="group flex min-w-0 flex-1 items-center gap-3"
-                    title={`Open ${document.originalName}`}
+                    title={`開啟 ${document.originalName}`}
                   >
                     <span
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded"
@@ -342,7 +369,7 @@ function LibraryContents({
                       onClick={() => closeMenuAnd(() => onRename(target))}
                     >
                       <FilePenLine className="h-4 w-4" aria-hidden="true" />
-                      Rename
+                      重新命名
                     </MenuButton>
                     <MenuButton
                       onClick={() =>
@@ -350,14 +377,14 @@ function LibraryContents({
                       }
                     >
                       <FileInput className="h-4 w-4" aria-hidden="true" />
-                      Move
+                      移動到…
                     </MenuButton>
                     <MenuButton
                       destructive
                       onClick={() => closeMenuAnd(() => onDelete(target))}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      Delete
+                      刪除
                     </MenuButton>
                   </ItemMenu>
                 </article>
@@ -479,13 +506,13 @@ export default function LibraryBrowser({
       const data = await response.json();
 
       if (!response.ok) {
-        setActionError(data.error || "Failed to load folders");
+        setActionError(data.error || "無法載入資料夾清單");
         return;
       }
 
       setAllFolders(data.folders);
     } catch {
-      setActionError("Network error. Failed to load folders.");
+      setActionError("網路錯誤，無法載入資料夾清單。");
     } finally {
       setFoldersLoading(false);
     }
@@ -508,7 +535,7 @@ export default function LibraryBrowser({
       const data = await response.json();
 
       if (!response.ok) {
-        setCreateError(data.error || "Failed to create folder");
+        setCreateError(data.error || "無法建立資料夾");
         return;
       }
 
@@ -516,7 +543,7 @@ export default function LibraryBrowser({
       setCreateFolderOpen(false);
       refreshContents();
     } catch {
-      setCreateError("Network error. Failed to create folder.");
+      setCreateError("網路錯誤，無法建立資料夾。");
     } finally {
       setCreatingFolder(false);
     }
@@ -547,14 +574,14 @@ export default function LibraryBrowser({
       const data = await response.json();
 
       if (!response.ok) {
-        setActionError(data.error || "Failed to rename item");
+        setActionError(data.error || "無法重新命名");
         return;
       }
 
       setRenameTarget(null);
       refreshContents();
     } catch {
-      setActionError("Network error. Failed to rename item.");
+      setActionError("網路錯誤，無法重新命名。");
     } finally {
       setActionLoading(false);
     }
@@ -576,14 +603,14 @@ export default function LibraryBrowser({
       const data = await response.json();
 
       if (!response.ok) {
-        setActionError(data.error || "Failed to move document");
+        setActionError(data.error || "無法移動講義");
         return;
       }
 
       setMoveTarget(null);
       refreshContents();
     } catch {
-      setActionError("Network error. Failed to move document.");
+      setActionError("網路錯誤，無法移動講義。");
     } finally {
       setActionLoading(false);
     }
@@ -605,14 +632,14 @@ export default function LibraryBrowser({
       const data = await response.json();
 
       if (!response.ok) {
-        setActionError(data.error || "Failed to delete item");
+        setActionError(data.error || "無法刪除");
         return;
       }
 
       setDeleteTarget(null);
       refreshContents();
     } catch {
-      setActionError("Network error. Failed to delete item.");
+      setActionError("網路錯誤，無法刪除。");
     } finally {
       setActionLoading(false);
     }
@@ -630,22 +657,22 @@ export default function LibraryBrowser({
                 setCreateError("");
                 setCreateFolderOpen(true);
               }}
-              aria-label="New folder"
-              title="New folder"
+              aria-label="新增資料夾"
+              title="新增資料夾"
               className="btn btn-ghost"
             >
               <FolderPlus className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">New folder</span>
+              <span className="hidden sm:inline">新增資料夾</span>
             </button>
             <button
               type="button"
               onClick={() => setUploadOpen(true)}
-              aria-label="Upload PDF"
-              title="Upload PDF"
+              aria-label="上傳講義"
+              title="上傳講義"
               className="btn btn-primary"
             >
               <Upload className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Upload PDF</span>
+              <span className="hidden sm:inline">上傳講義</span>
             </button>
             <AISettingsButton scope="library" />
             <ThemeControls />
@@ -666,7 +693,7 @@ export default function LibraryBrowser({
           </button>
         )}
         <h2 className="mb-6 text-xl font-semibold">
-          {currentFolder?.name ?? "My Library"}
+          {currentFolder?.name ?? "我的書庫"}
         </h2>
 
         <LibraryContents
@@ -679,12 +706,13 @@ export default function LibraryBrowser({
             setActionError("");
             setDeleteTarget(target);
           }}
+          onUpload={() => setUploadOpen(true)}
         />
       </div>
 
       {createFolderOpen && (
         <Modal
-          title="New folder"
+          title="新增資料夾"
           onClose={() => {
             if (!creatingFolder) setCreateFolderOpen(false);
           }}
@@ -694,7 +722,7 @@ export default function LibraryBrowser({
               htmlFor="folder-name"
               className="block text-sm font-medium text-gray-800"
             >
-              Name
+              名稱
               <input
                 id="folder-name"
                 value={folderName}
@@ -713,7 +741,7 @@ export default function LibraryBrowser({
                 disabled={creatingFolder}
                 className="btn btn-ghost"
               >
-                Cancel
+                取消
               </button>
               <button
                 type="submit"
@@ -723,7 +751,7 @@ export default function LibraryBrowser({
                 {creatingFolder && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 )}
-                Create
+                建立
               </button>
             </div>
           </form>
@@ -745,7 +773,7 @@ export default function LibraryBrowser({
 
       {renameTarget && (
         <Modal
-          title={`Rename ${renameTarget.kind}`}
+          title={renameTarget.kind === "folder" ? "重新命名資料夾" : "重新命名講義"}
           onClose={() => {
             if (!actionLoading) setRenameTarget(null);
           }}
@@ -755,7 +783,7 @@ export default function LibraryBrowser({
               htmlFor="rename-value"
               className="block text-sm font-medium text-gray-800"
             >
-              Name
+              名稱
               <input
                 id="rename-value"
                 value={renameValue}
@@ -774,7 +802,7 @@ export default function LibraryBrowser({
                 disabled={actionLoading}
                 className="btn btn-ghost"
               >
-                Cancel
+                取消
               </button>
               <button
                 type="submit"
@@ -784,7 +812,7 @@ export default function LibraryBrowser({
                 {actionLoading && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 )}
-                Rename
+                儲存
               </button>
             </div>
           </form>
@@ -793,7 +821,7 @@ export default function LibraryBrowser({
 
       {moveTarget && (
         <Modal
-          title="Move PDF"
+          title="移動講義"
           onClose={() => {
             if (!actionLoading) setMoveTarget(null);
           }}
@@ -806,7 +834,7 @@ export default function LibraryBrowser({
               htmlFor="move-folder"
               className="block text-sm font-medium text-gray-800"
             >
-              Destination
+              移動到
               <select
                 id="move-folder"
                 value={moveFolderId}
@@ -814,7 +842,7 @@ export default function LibraryBrowser({
                 disabled={foldersLoading}
                 className="mt-2 h-10 w-full rounded border border-gray-300 bg-white px-3 outline-none focus:border-blue-500"
               >
-                <option value="">My Library</option>
+                <option value="">我的書庫</option>
                 {flattenedFolders.map(({ folder, depth }) => (
                   <option key={folder.id} value={folder.id}>
                     {`${"— ".repeat(depth)}${folder.name}`}
@@ -823,7 +851,7 @@ export default function LibraryBrowser({
               </select>
             </label>
             {foldersLoading && (
-              <p className="text-sm text-gray-500">Loading folders...</p>
+              <p className="text-sm text-gray-500">載入資料夾中…</p>
             )}
             {actionError && (
               <p className="text-sm text-red-600">{actionError}</p>
@@ -835,7 +863,7 @@ export default function LibraryBrowser({
                 disabled={actionLoading}
                 className="btn btn-ghost"
               >
-                Cancel
+                取消
               </button>
               <button
                 type="submit"
@@ -845,7 +873,7 @@ export default function LibraryBrowser({
                 {actionLoading && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 )}
-                Move
+                移動
               </button>
             </div>
           </form>
@@ -854,7 +882,7 @@ export default function LibraryBrowser({
 
       {deleteTarget && (
         <Modal
-          title={`Delete ${deleteTarget.kind}`}
+          title={deleteTarget.kind === "folder" ? "刪除資料夾" : "刪除講義"}
           onClose={() => {
             if (!actionLoading) setDeleteTarget(null);
           }}
@@ -862,8 +890,8 @@ export default function LibraryBrowser({
           <div className="space-y-4">
             <p className="text-sm text-gray-700">
               {deleteTarget.kind === "document"
-                ? `Permanently delete “${deleteTarget.item.originalName}”? Its notes, summaries, and Q&A history will also be deleted.`
-                : `Delete “${deleteTarget.item.name}”? Nested folders will be removed, while their PDFs will be moved to My Library.`}
+                ? `確定要永久刪除「${deleteTarget.item.originalName}」嗎？筆記、摘要與問答紀錄也會一併刪除。`
+                : `確定要刪除「${deleteTarget.item.name}」嗎？子資料夾會一併移除，其中的講義將移回我的書庫。`}
             </p>
             {actionError && (
               <p className="text-sm text-red-600">{actionError}</p>
@@ -875,7 +903,7 @@ export default function LibraryBrowser({
                 disabled={actionLoading}
                 className="btn btn-ghost"
               >
-                Cancel
+                取消
               </button>
               <button
                 type="button"
@@ -886,7 +914,7 @@ export default function LibraryBrowser({
                 {actionLoading && (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 )}
-                Delete
+                刪除
               </button>
             </div>
           </div>
