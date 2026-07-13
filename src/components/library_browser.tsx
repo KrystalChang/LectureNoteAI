@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import {
-  ChevronRight,
+  ArrowLeft,
   FileInput,
   FilePenLine,
   FileText,
@@ -655,6 +655,16 @@ export default function LibraryBrowser({
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        {folderPath.length > 0 && (
+          <button
+            type="button"
+            onClick={() => navigateToPathIndex(folderPath.length - 2)}
+            className="btn btn-subtle mb-3 h-8 gap-1.5 px-2 text-sm"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span className="max-w-[16rem] truncate">返回</span>
+          </button>
+        )}
         <h2 className="mb-6 text-xl font-semibold">
           {currentFolder?.name ?? "My Library"}
         </h2>
