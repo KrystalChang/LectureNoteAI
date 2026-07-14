@@ -12,6 +12,10 @@ import { deleteObject, getObjectBuffer, getObjectSize } from "@/lib/r2";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
+// Vercel: allow up to 60s — finalize downloads the PDF from R2 and extracts
+// text from every page, which can exceed the default function duration.
+export const maxDuration = 60;
+
 /**
  * Step 2 of the upload flow (finalize). By the time this runs, the browser has
  * already PUT the PDF straight to R2 using the presigned URL from
