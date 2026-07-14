@@ -121,14 +121,43 @@ export default function UploadPage({
     setIsUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folderId", folderId ?? "");
-      formData.append("promptPreferences", JSON.stringify(preferences));
+      // 1) Ask the server for a presigned R2 upload URL.
+      const presignRes = await fetch("/api/upload/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          size: file.size,
+          contentType: file.type || "application/pdf",
+        }),
+      });
+      const presignData = await presignRes.json();
+      if (!presignRes.ok) {
+        setError(presignData.error || "上傳失敗，請稍後再試。");
+        return;
+      }
 
+      // 2) PUT the PDF straight to R2 (bypasses the API server entirely).
+      const putRes = await fetch(presignData.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/pdf" },
+        body: file,
+      });
+      if (!putRes.ok) {
+        setError("檔案上傳到儲存空間失敗，請稍後再試。");
+        return;
+      }
+
+      // 3) Tell the server to register the document (text extraction + DB row).
       const res = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: presignData.key,
+          originalName: file.name,
+          folderId: folderId ?? "",
+          promptPreferences: JSON.stringify(preferences),
+        }),
       });
 
       const data = await res.json();

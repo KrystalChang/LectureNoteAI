@@ -1,6 +1,6 @@
-import fs from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/auth_helpers";
+import { deleteObject } from "@/lib/r2";
 
 type RouteContext = {
   params: Promise<{
@@ -133,17 +133,12 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
     await prisma.document.delete({ where: { id: documentId } });
 
+    // filePath holds the R2 object key; deleteObject treats a missing object
+    // as success, and the DB row is already gone either way.
     try {
-      await fs.unlink(document.filePath);
+      await deleteObject(document.filePath);
     } catch (fileError) {
-      const code =
-        fileError && typeof fileError === "object" && "code" in fileError
-          ? fileError.code
-          : undefined;
-
-      if (code !== "ENOENT") {
-        console.error("Failed to remove PDF file:", fileError);
-      }
+      console.error("Failed to remove PDF from R2:", fileError);
     }
 
     return Response.json({ success: true });

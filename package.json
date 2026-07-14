@@ -11,6 +11,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
     "@auth/prisma-adapter": "^2.11.2",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@blocknote/core": "^0.51.4",
     "@blocknote/mantine": "^0.51.4",
     "@blocknote/react": "^0.51.4",
