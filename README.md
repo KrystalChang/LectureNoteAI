@@ -6,13 +6,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Claude](https://img.shields.io/badge/AI-Claude-orange)](https://www.anthropic.com/claude)
 
-[Open the live app](https://lecture-note-ai-nine.vercel.app) · [Watch the demo](https://youtu.be/Cs3rGweGkYo) · [Report an issue](https://github.com/KrystalChang/LectureNoteAI/issues)
+[Open the live app](https://lecture-note-ai-nine.vercel.app)
 
 LectureNoteAI turns PDF lecture material into an interactive study environment. Upload a PDF, read it alongside streaming AI summaries, ask questions about selected text or diagrams, keep page-specific notes, and export your work as PDF, Word, or Markdown.
 
 ## Demo
 
-[![LectureNoteAI reader showing a lecture slide beside an AI-generated summary](public/demo/reader-summary.png)](https://lecture-note-ai-nine.vercel.app)
+[![LectureNoteAI demo showing a PDF lecture beside an AI-generated summary and Q&A workspace](public/demo/demo-hero.png)](https://lecture-note-ai-nine.vercel.app)
 
 The reader keeps the source page, AI summary, Q&A, and personal notes together in one workspace. For the complete walkthrough, [watch the demo video on YouTube](https://youtu.be/Cs3rGweGkYo).
 
@@ -31,18 +31,18 @@ The reader keeps the source page, AI summary, Q&A, and personal notes together i
 
 ## Architecture
 
-| Area | Technology |
-| --- | --- |
-| Web application | Next.js 16 App Router, React 19, TypeScript 5 |
-| Styling | Tailwind CSS v4 |
-| Database | PostgreSQL and Prisma ORM |
-| Authentication | Auth.js / NextAuth v5 with Google OAuth and JWT sessions |
-| AI | Anthropic Claude with streaming, vision, and prompt caching |
-| Storage | Cloudflare R2 with browser-to-bucket presigned uploads |
-| PDF | react-pdf and pdfjs-dist (legacy build for server-side extraction) |
-| Notes | BlockNote |
-| Math | KaTeX |
-| Streaming | NDJSON over `application/x-ndjson` |
+| Area            | Technology                                                         |
+| --------------- | ------------------------------------------------------------------ |
+| Web application | Next.js 16 App Router, React 19, TypeScript 5                      |
+| Styling         | Tailwind CSS v4                                                    |
+| Database        | PostgreSQL and Prisma ORM                                          |
+| Authentication  | Auth.js / NextAuth v5 with Google OAuth and JWT sessions           |
+| AI              | Anthropic Claude with streaming, vision, and prompt caching        |
+| Storage         | Cloudflare R2 with browser-to-bucket presigned uploads             |
+| PDF             | react-pdf and pdfjs-dist (legacy build for server-side extraction) |
+| Notes           | BlockNote                                                          |
+| Math            | KaTeX                                                              |
+| Streaming       | NDJSON over `application/x-ndjson`                                 |
 
 ### Request flow
 
