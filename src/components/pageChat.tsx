@@ -35,6 +35,14 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function readAiError(response: Response, fallback: string) {
+  const data = await response.json().catch(() => null);
+  if (data?.code === "MONTHLY_AI_LIMIT") {
+    return "本月 100 次免費 AI 使用額度已用完，將於下個月重置。";
+  }
+  return typeof data?.error === "string" ? data.error : fallback;
+}
+
 export default function PageChat({
   documentId,
   pageNumber,
@@ -106,6 +114,12 @@ export default function PageChat({
           signal,
         },
       );
+
+      if (!response.ok) {
+        const message = await readAiError(response, "摘要產生失敗");
+        safe(() => setSummaryError(message));
+        return;
+      }
 
       let needsImage = false;
       await readNdjsonStream(
@@ -220,6 +234,11 @@ export default function PageChat({
           stream: true,
         }),
       });
+
+      if (!response.ok) {
+        setError(await readAiError(response, "回答失敗"));
+        return;
+      }
 
       let saved: QAEntry | null = null;
       await readNdjsonStream(response, (msg) => {

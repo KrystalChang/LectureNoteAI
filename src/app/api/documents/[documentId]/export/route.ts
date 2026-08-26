@@ -1,6 +1,10 @@
 import { compileNotes, notesToMarkdown } from "@/lib/export_notes";
 import { buildDocx } from "@/lib/docx_export";
 import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
+import {
+  AiQuotaLimitError,
+  aiQuotaLimitResponse,
+} from "@/lib/ai_quota_limit";
 
 type RouteParams = {
   params: Promise<{ documentId: string }>;
@@ -26,7 +30,16 @@ export async function GET(request: Request, { params }: RouteParams) {
   const { searchParams } = new URL(request.url);
   const format = (searchParams.get("format") || "json").toLowerCase();
 
-  const compiled = await compileNotes(documentId);
+  let compiled;
+  try {
+    compiled = await compileNotes(documentId, userId);
+  } catch (error) {
+    if (error instanceof AiQuotaLimitError) {
+      return aiQuotaLimitResponse(error);
+    }
+    console.error("Error compiling notes:", error);
+    return Response.json({ error: "Failed to compile notes" }, { status: 500 });
+  }
   if (!compiled) {
     return Response.json({ error: "Document not found" }, { status: 404 });
   }

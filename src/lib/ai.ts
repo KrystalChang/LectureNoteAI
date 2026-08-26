@@ -1,4 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import {
   DocumentFormat,
   PromptTone,
@@ -11,24 +13,61 @@ import {
   buildPromptSuggestionUserPrompt,
 } from "./prompts/suggest";
 
-const client = new Anthropic({
-  apiKey: process.env["ANTHROPIC_API_KEY"],
-  baseURL: process.env["ANTHROPIC_BASE_URL"],
-});
+export type AiProvider = "openai" | "anthropic" | "gemini";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// Keep existing deployments on Anthropic until AI_PROVIDER is explicitly set.
+const providerValue =
+  process.env.AI_PROVIDER?.trim().toLowerCase() || "anthropic";
 
-export const AI_MODEL = MODEL;
+if (!isAiProvider(providerValue)) {
+  throw new Error(
+    `Unsupported AI_PROVIDER "${providerValue}". Use openai, anthropic, or gemini.`,
+  );
+}
+
+export const AI_PROVIDER: AiProvider = providerValue;
+
+const PROVIDER_MODELS: Record<AiProvider, string> = {
+  openai: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+  anthropic: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
+  gemini: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+};
+
+export const AI_MODEL = PROVIDER_MODELS[AI_PROVIDER];
+
+const openai =
+  AI_PROVIDER === "openai"
+    ? new OpenAI({
+        apiKey: requireEnv("OPENAI_API_KEY"),
+        baseURL: process.env.OPENAI_BASE_URL || undefined,
+      })
+    : null;
+
+const anthropic =
+  AI_PROVIDER === "anthropic"
+    ? new Anthropic({
+        apiKey: requireEnv("ANTHROPIC_API_KEY"),
+        baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
+      })
+    : null;
+
+const gemini =
+  AI_PROVIDER === "gemini"
+    ? new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") })
+    : null;
 
 type ImageSource = {
   mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
   data: string;
 };
 
-/**
- * Parse a data URL (`data:image/png;base64,....`) into an Anthropic image
- * source. Returns null if the string isn't a supported base64 image.
- */
+type AiInput = {
+  systemPrompt: string;
+  userPrompt: string;
+  image: ImageSource | null;
+  maxOutputTokens: number;
+};
+
 export function parseImageDataUrl(value: unknown): ImageSource | null {
   if (typeof value !== "string") return null;
   const match = value.match(
@@ -42,48 +81,58 @@ export function parseImageDataUrl(value: unknown): ImageSource | null {
   };
 }
 
-function buildSummaryUserContent(
+function buildSummaryInput(
   pageText: string,
+  customSystemPrompt: string | undefined,
   customUserPrompt: string | undefined,
   image: ImageSource | null,
-): Anthropic.MessageParam["content"] {
+): AiInput {
   const trimmedUserPrompt = customUserPrompt?.trim() ?? "";
   const textPrompt = trimmedUserPrompt
     ? trimmedUserPrompt.includes("{{pageText}}")
       ? fillPromptTemplate(trimmedUserPrompt, { pageText })
       : `${trimmedUserPrompt}\n\n頁面內容：\n${pageText}`
     : pageText;
+  const userPrompt = image
+    ? pageText.trim()
+      ? `${textPrompt}\n\n（這一頁文字內容有限，請根據附上的頁面圖片做摘要。）`
+      : "這一頁以圖片為主、幾乎沒有可擷取的文字。請直接根據附上的頁面圖片內容做摘要。"
+    : textPrompt;
 
-  if (image) {
-    const instruction = pageText.trim()
-      ? `${textPrompt}\n\n（這一頁文字內容有限，以下附上頁面圖片，請直接根據圖片內容做摘要。）`
-      : "這一頁以圖片為主、幾乎沒有可擷取的文字。請直接根據下方頁面圖片的內容（圖表、流程、標題、示意圖等）做摘要。";
-    return [
-      {
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: image.mediaType,
-          data: image.data,
-        },
-      },
-      { type: "text", text: instruction },
-    ];
-  }
-
-  return textPrompt;
+  return {
+    systemPrompt: customSystemPrompt?.trim() || SUMMARY_SYSTEM_PROMPT,
+    userPrompt,
+    image,
+    maxOutputTokens: 2048,
+  };
 }
 
-function resolveSummarySystem(customSystemPrompt?: string) {
-  return [
-    {
-      type: "text" as const,
-      // Marked cacheable — identical for every page, so after the first call
-      // subsequent ones read it from Anthropic's prompt cache (~10% cost).
-      text: customSystemPrompt?.trim() || SUMMARY_SYSTEM_PROMPT,
-      cache_control: { type: "ephemeral" as const },
-    },
-  ];
+function buildQAInput(input: {
+  pageText: string;
+  selectedText: string;
+  question: string;
+  systemPrompt?: string;
+  userPrompt?: string;
+  image: ImageSource | null;
+}): AiInput {
+  const { pageText, selectedText, question, userPrompt, image } = input;
+  const finalUserPrompt = userPrompt?.trim()
+    ? fillPromptTemplate(userPrompt, { pageText, selectedText, question })
+    : `講義頁面內容：\n${pageText}\n\n使用者選取文字：\n${selectedText}\n\n問題：\n${question}`;
+  const textBody = finalUserPrompt.includes(pageText)
+    ? finalUserPrompt
+    : `${finalUserPrompt}\n\n講義頁面內容：\n${pageText}`;
+
+  return {
+    systemPrompt: input.systemPrompt?.trim() || DEFAULT_QA_SYSTEM,
+    userPrompt: image
+      ? `使用者圈選了附上的圖片區域，並提出問題：\n${question}\n\n請根據圖片內容回答。${
+          pageText.trim() ? `\n\n本頁文字內容供參考：\n${pageText}` : ""
+        }`
+      : textBody,
+    image,
+    maxOutputTokens: 1024,
+  };
 }
 
 /** Non-streaming summary (used by export + background prefetch). */
@@ -93,93 +142,36 @@ export async function summaryOnePage(
   customUserPrompt?: string,
   image?: ImageSource | null,
 ) {
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    system: resolveSummarySystem(customSystemPrompt),
-    messages: [
-      {
-        role: "user",
-        content: buildSummaryUserContent(
-          pageText,
-          customUserPrompt,
-          image ?? null,
-        ),
-      },
-    ],
-  });
-
-  const block = message.content[0];
-  return block?.type === "text" ? block.text : "無法產生摘要";
+  return generateText(
+    buildSummaryInput(
+      pageText,
+      customSystemPrompt,
+      customUserPrompt,
+      image ?? null,
+    ),
+  );
 }
 
-/** Streaming summary — returns the Anthropic stream for the route to iterate. */
+/** Streaming summary normalized to plain text deltas for route handlers. */
 export function streamSummaryOnePage(
   pageText: string,
   customSystemPrompt?: string,
   customUserPrompt?: string,
   image?: ImageSource | null,
 ) {
-  return client.messages.stream({
-    model: MODEL,
-    max_tokens: 2048,
-    system: resolveSummarySystem(customSystemPrompt),
-    messages: [
-      {
-        role: "user",
-        content: buildSummaryUserContent(
-          pageText,
-          customUserPrompt,
-          image ?? null,
-        ),
-      },
-    ],
-  });
+  return streamText(
+    buildSummaryInput(
+      pageText,
+      customSystemPrompt,
+      customUserPrompt,
+      image ?? null,
+    ),
+  );
 }
 
 const DEFAULT_QA_SYSTEM =
   "你是一位專業的學術助理。請根據講義頁面內容與使用者選取的文字（或圈選的圖片區域），用繁體中文回答問題。只能根據提供內容回答，不要編造。";
 
-function buildQAContent(input: {
-  pageText: string;
-  selectedText: string;
-  question: string;
-  userPrompt?: string;
-  image: ImageSource | null;
-}): Anthropic.MessageParam["content"] {
-  const { pageText, selectedText, question, userPrompt, image } = input;
-
-  const finalUserPrompt = userPrompt?.trim()
-    ? fillPromptTemplate(userPrompt, { pageText, selectedText, question })
-    : `講義頁面內容：\n${pageText}\n\n使用者選取文字：\n${selectedText}\n\n問題：\n${question}`;
-
-  const textBody = finalUserPrompt.includes(pageText)
-    ? finalUserPrompt
-    : `${finalUserPrompt}\n\n講義頁面內容：\n${pageText}`;
-
-  if (image) {
-    return [
-      {
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: image.mediaType,
-          data: image.data,
-        },
-      },
-      {
-        type: "text",
-        text: `使用者圈選了這一頁的一個圖片區域（如上圖），並提出問題：\n${question}\n\n請根據圈選的圖片內容回答。${
-          pageText.trim() ? `\n\n（本頁文字內容供參考）：\n${pageText}` : ""
-        }`,
-      },
-    ];
-  }
-
-  return textBody;
-}
-
-/** Non-streaming Q&A. */
 export async function answerQuestionAboutPage(input: {
   pageText: string;
   selectedText: string;
@@ -188,29 +180,10 @@ export async function answerQuestionAboutPage(input: {
   userPrompt?: string;
   image?: ImageSource | null;
 }) {
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: [
-      {
-        type: "text",
-        text: input.systemPrompt?.trim() || DEFAULT_QA_SYSTEM,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: buildQAContent({ ...input, image: input.image ?? null }),
-      },
-    ],
-  });
-
-  const block = message.content[0];
-  return block?.type === "text" ? block.text : "無法產生回答";
+  return generateText(buildQAInput({ ...input, image: input.image ?? null }));
 }
 
-/** Streaming Q&A — returns the Anthropic stream for the route to iterate. */
+/** Streaming Q&A normalized to plain text deltas for route handlers. */
 export function streamAnswerAboutPage(input: {
   pageText: string;
   selectedText: string;
@@ -219,23 +192,141 @@ export function streamAnswerAboutPage(input: {
   userPrompt?: string;
   image?: ImageSource | null;
 }) {
-  return client.messages.stream({
-    model: MODEL,
-    max_tokens: 1024,
-    system: [
-      {
-        type: "text",
-        text: input.systemPrompt?.trim() || DEFAULT_QA_SYSTEM,
-        cache_control: { type: "ephemeral" },
+  return streamText(buildQAInput({ ...input, image: input.image ?? null }));
+}
+
+async function generateText(input: AiInput): Promise<string> {
+  switch (AI_PROVIDER) {
+    case "openai": {
+      const response = await openai!.responses.create({
+        model: AI_MODEL,
+        instructions: input.systemPrompt,
+        input: openAiContent(input),
+        max_output_tokens: input.maxOutputTokens,
+      });
+      return response.output_text || "無法產生回答";
+    }
+    case "anthropic": {
+      const response = await anthropic!.messages.create({
+        model: AI_MODEL,
+        max_tokens: input.maxOutputTokens,
+        system: input.systemPrompt,
+        messages: [{ role: "user", content: anthropicContent(input) }],
+      });
+      const block = response.content.find((part) => part.type === "text");
+      return block?.type === "text" ? block.text : "無法產生回答";
+    }
+    case "gemini": {
+      const response = await gemini!.models.generateContent({
+        model: AI_MODEL,
+        contents: geminiContent(input),
+        config: {
+          systemInstruction: input.systemPrompt,
+          maxOutputTokens: input.maxOutputTokens,
+        },
+      });
+      return response.text || "無法產生回答";
+    }
+  }
+}
+
+async function* streamText(input: AiInput): AsyncGenerator<string> {
+  switch (AI_PROVIDER) {
+    case "openai": {
+      const stream = await openai!.responses.create({
+        model: AI_MODEL,
+        instructions: input.systemPrompt,
+        input: openAiContent(input),
+        max_output_tokens: input.maxOutputTokens,
+        stream: true,
+      });
+      for await (const event of stream) {
+        if (event.type === "response.output_text.delta") yield event.delta;
+      }
+      return;
+    }
+    case "anthropic": {
+      const stream = anthropic!.messages.stream({
+        model: AI_MODEL,
+        max_tokens: input.maxOutputTokens,
+        system: input.systemPrompt,
+        messages: [{ role: "user", content: anthropicContent(input) }],
+      });
+      for await (const event of stream) {
+        if (
+          event.type === "content_block_delta" &&
+          event.delta.type === "text_delta"
+        ) {
+          yield event.delta.text;
+        }
+      }
+      return;
+    }
+    case "gemini": {
+      const stream = await gemini!.models.generateContentStream({
+        model: AI_MODEL,
+        contents: geminiContent(input),
+        config: {
+          systemInstruction: input.systemPrompt,
+          maxOutputTokens: input.maxOutputTokens,
+        },
+      });
+      for await (const chunk of stream) {
+        if (chunk.text) yield chunk.text;
+      }
+    }
+  }
+}
+
+function openAiContent(input: AiInput) {
+  return [
+    {
+      role: "user" as const,
+      content: input.image
+        ? [
+            {
+              type: "input_image" as const,
+              image_url: imageDataUrl(input.image),
+              detail: "auto" as const,
+            },
+            { type: "input_text" as const, text: input.userPrompt },
+          ]
+        : [{ type: "input_text" as const, text: input.userPrompt }],
+    },
+  ];
+}
+
+function anthropicContent(input: AiInput): Anthropic.MessageParam["content"] {
+  if (!input.image) return input.userPrompt;
+  return [
+    {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: input.image.mediaType,
+        data: input.image.data,
       },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: buildQAContent({ ...input, image: input.image ?? null }),
-      },
-    ],
-  });
+    },
+    { type: "text", text: input.userPrompt },
+  ];
+}
+
+function geminiContent(input: AiInput) {
+  return input.image
+    ? [
+        {
+          inlineData: {
+            mimeType: input.image.mediaType,
+            data: input.image.data,
+          },
+        },
+        { text: input.userPrompt },
+      ]
+    : [{ text: input.userPrompt }];
+}
+
+function imageDataUrl(image: ImageSource) {
+  return `data:${image.mediaType};base64,${image.data}`;
 }
 
 export type PromptSuggestionAnalysis = {
@@ -253,31 +344,14 @@ export type PromptSuggestionAnalysis = {
 
 export async function suggestPromptPreferencesFromDocument(input: {
   documentName: string;
-  pages: Array<{
-    pageNumber: number;
-    extractedText: string;
-  }>;
+  pages: Array<{ pageNumber: number; extractedText: string }>;
 }): Promise<PromptSuggestionAnalysis> {
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1200,
-    system: [
-      {
-        type: "text",
-        text: SUGGEST_PROMPT_PREFERENCES_SYSTEM_PROMPT,
-      },
-    ],
-    messages: [
-      {
-        role: "user",
-        content: buildPromptSuggestionUserPrompt(input),
-      },
-    ],
+  const rawText = await generateText({
+    systemPrompt: SUGGEST_PROMPT_PREFERENCES_SYSTEM_PROMPT,
+    userPrompt: buildPromptSuggestionUserPrompt(input),
+    image: null,
+    maxOutputTokens: 1200,
   });
-
-  const block = message.content[0];
-  const rawText = block?.type === "text" ? block.text : "";
-
   return normalizePromptSuggestionAnalysis(parseJsonObject(rawText));
 }
 
@@ -288,11 +362,7 @@ function parseJsonObject(text: string): unknown {
     .replace(/\s*```$/i, "")
     .trim();
   const match = jsonText.match(/\{[\s\S]*\}/);
-
-  if (!match) {
-    throw new Error("Prompt suggestion response was not valid JSON");
-  }
-
+  if (!match) throw new Error("Prompt suggestion response was not valid JSON");
   return JSON.parse(match[0]);
 }
 
@@ -300,7 +370,6 @@ function normalizePromptSuggestionAnalysis(
   value: unknown,
 ): PromptSuggestionAnalysis {
   const input = isRecord(value) ? value : {};
-
   return {
     topic: stringOr(input.topic, "一般講義"),
     documentFormat: pick(
@@ -327,6 +396,16 @@ function normalizePromptSuggestionAnalysis(
       "已根據文件前五頁內容套用較適合閱讀講義的 AI 設定。",
     ),
   };
+}
+
+function isAiProvider(value: string): value is AiProvider {
+  return value === "openai" || value === "anthropic" || value === "gemini";
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required when using ${AI_PROVIDER}`);
+  return value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

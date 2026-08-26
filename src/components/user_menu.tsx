@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
+import { LoaderCircle, LogOut, Sparkles } from "lucide-react";
 import { signOutAction } from "@/app/actions/auth";
 
 export type SessionUser = {
@@ -10,9 +10,20 @@ export type SessionUser = {
   image?: string | null;
 };
 
+type AiQuota = {
+  month: string;
+  limit: number;
+  used: number;
+  remaining: number;
+};
+
 export default function UserMenu({ user }: { user?: SessionUser | null }) {
   const [open, setOpen] = useState(false);
+  const [quota, setQuota] = useState<AiQuota | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [quotaError, setQuotaError] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const quotaRequestRef = useRef(0);
 
   useEffect(() => {
     if (!open) return;
@@ -23,6 +34,35 @@ export default function UserMenu({ user }: { user?: SessionUser | null }) {
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  async function loadQuota() {
+    const requestId = ++quotaRequestRef.current;
+    setQuotaLoading(true);
+    setQuotaError("");
+    try {
+      const response = await fetch("/api/ai/quota", { cache: "no-store" });
+      const data = (await response.json()) as {
+        quota?: AiQuota;
+        error?: string;
+      };
+      if (!response.ok || !data.quota) {
+        throw new Error(data.error || "Failed to load AI quota");
+      }
+      if (requestId === quotaRequestRef.current) setQuota(data.quota);
+    } catch {
+      if (requestId === quotaRequestRef.current) {
+        setQuotaError("無法載入 AI 額度");
+      }
+    } finally {
+      if (requestId === quotaRequestRef.current) setQuotaLoading(false);
+    }
+  }
+
+  function toggleMenu() {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    if (nextOpen) void loadQuota();
+  }
+
   if (!user) return null;
 
   const label = user.name || user.email || "使用者";
@@ -32,7 +72,7 @@ export default function UserMenu({ user }: { user?: SessionUser | null }) {
     <div className="relative shrink-0" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleMenu}
         className="flex items-center gap-2 rounded-full border border-[var(--border)] p-0.5 pr-2 transition-colors hover:bg-[var(--surface-hover)]"
         aria-label="使用者選單"
         aria-expanded={open}
@@ -65,6 +105,52 @@ export default function UserMenu({ user }: { user?: SessionUser | null }) {
               <p className="truncate text-xs text-[var(--text-muted)]">
                 {user.email}
               </p>
+            )}
+          </div>
+          <div className="my-1 h-px bg-[var(--border)]" />
+          <div className="px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[var(--text)]">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                本月 AI 額度
+              </span>
+              {quotaLoading ? (
+                <LoaderCircle
+                  className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]"
+                  aria-label="載入額度中"
+                />
+              ) : quota ? (
+                <span className="text-xs tabular-nums text-[var(--text-muted)]">
+                  {quota.used} / {quota.limit}
+                </span>
+              ) : null}
+            </div>
+
+            {quota && !quotaLoading && (
+              <>
+                <div
+                  className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--surface-hover)]"
+                  role="progressbar"
+                  aria-label="本月 AI 額度使用量"
+                  aria-valuemin={0}
+                  aria-valuemax={quota.limit}
+                  aria-valuenow={quota.used}
+                >
+                  <div
+                    className="h-full rounded-full bg-[var(--accent)] transition-[width]"
+                    style={{
+                      width: `${Math.min(100, (quota.used / quota.limit) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-[var(--text-muted)]">
+                  剩餘 {quota.remaining} 次 · {quota.month}
+                </p>
+              </>
+            )}
+
+            {quotaError && (
+              <p className="mt-1.5 text-xs text-red-600">{quotaError}</p>
             )}
           </div>
           <div className="my-1 h-px bg-[var(--border)]" />

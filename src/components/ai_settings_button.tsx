@@ -160,9 +160,14 @@ export default function AISettingsButton({
       const response = await fetch(
         `/api/documents/${documentId}/prompt-suggestions`,
       );
-      const data: PromptSuggestion | { error?: string } = await response.json();
+      const data: PromptSuggestion | { error?: string; code?: string } =
+        await response.json();
 
       if (!response.ok) {
+        if ("code" in data && data.code === "MONTHLY_AI_LIMIT") {
+          setError("本月 100 次免費 AI 使用額度已用完，將於下個月重置。");
+          return;
+        }
         setError(
           "error" in data
             ? data.error || "Failed to suggest settings"

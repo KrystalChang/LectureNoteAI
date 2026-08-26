@@ -8,6 +8,12 @@ import {
   savePageSummary,
 } from "@/lib/page_store";
 import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
+import {
+  AiQuotaLimitError,
+  aiQuotaLimitResponse,
+  incrementUserUsage,
+  releaseUserUsage,
+} from "@/lib/ai_quota_limit";
 
 type RouteParams = {
   params: Promise<{
@@ -65,69 +71,93 @@ export async function POST(request: Request, { params }: RouteParams) {
   const cacheHit = Boolean(page.summary) && page.summaryPromptHash === promptHash;
   const needImageButMissing = treatAsImage && !image;
 
-  // ---- Streaming response ----
-  if (wantStream) {
-    return ndjsonResponse(async (emit) => {
-      if (cacheHit) {
+  if (cacheHit) {
+    if (wantStream) {
+      return ndjsonResponse(async (emit) => {
         emit({ type: "meta", cached: true });
         emit({ type: "delta", text: page.summary });
         emit({ type: "done", imageBased: treatAsImage });
-        return;
-      }
+      });
+    }
+    return Response.json({ summary: page.summary, cached: true });
+  }
 
-      if (needImageButMissing) {
-        // Ask the client to capture and resend the rendered page image.
+  if (needImageButMissing) {
+    if (wantStream) {
+      return ndjsonResponse(async (emit) => {
         emit({ type: "needsImage", imageBased: true });
-        return;
-      }
+      });
+    }
+    return Response.json({ needsImage: true, imageBased: true });
+  }
 
+  let usage;
+  try {
+    usage = await incrementUserUsage(userId);
+  } catch (error) {
+    if (error instanceof AiQuotaLimitError) {
+      return aiQuotaLimitResponse(error);
+    }
+    throw error;
+  }
+
+  // ---- Streaming response ----
+  if (wantStream) {
+    return ndjsonResponse(async (emit) => {
       emit({ type: "meta", cached: false, imageBased: treatAsImage });
-      const stream = streamSummaryOnePage(
-        page.extractedText,
-        systemPromptInput || undefined,
-        userPromptInput || undefined,
-        image,
-      );
-
       let full = "";
-      for await (const event of stream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          full += event.delta.text;
-          emit({ type: "delta", text: event.delta.text });
+
+      try {
+        const stream = streamSummaryOnePage(
+          page.extractedText,
+          systemPromptInput || undefined,
+          userPromptInput || undefined,
+          image,
+        );
+
+        for await (const delta of stream) {
+          full += delta;
+          emit({ type: "delta", text: delta });
         }
+      } catch (error) {
+        await releaseUserUsage(userId, usage.month);
+        throw error;
       }
 
       const finalText = full.trim() || "無法產生摘要";
       await savePageSummary(documentId, pageNumber, finalText, promptHash);
-      emit({ type: "done", imageBased: treatAsImage });
+      emit({ type: "done", imageBased: treatAsImage, usage });
     });
   }
 
   // ---- Non-streaming response (background prefetch / export) ----
-  if (cacheHit) {
-    return Response.json({ summary: page.summary, cached: true });
-  }
-  if (needImageButMissing) {
-    return Response.json({ needsImage: true, imageBased: true });
-  }
-
+  let summary: string;
   try {
-    const summary = await summaryOnePage(
+    summary = await summaryOnePage(
       page.extractedText,
       systemPromptInput || undefined,
       userPromptInput || undefined,
       image,
     );
-    await savePageSummary(documentId, pageNumber, summary, promptHash);
-    return Response.json({ summary, cached: false, imageBased: treatAsImage });
   } catch (error) {
+    await releaseUserUsage(userId, usage.month);
     console.error("Error generating summary:", error);
     return Response.json(
       { error: "Failed to generate summary" },
       { status: 500 },
     );
+  }
+
+  try {
+    await savePageSummary(documentId, pageNumber, summary, promptHash);
+    return Response.json({
+      summary,
+      cached: false,
+      imageBased: treatAsImage,
+      usage,
+    });
+  } catch (error) {
+    console.error("Error saving summary:", error);
+    return Response.json({ error: "Failed to save summary" }, { status: 500 });
   }
 }

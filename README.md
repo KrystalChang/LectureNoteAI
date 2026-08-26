@@ -4,7 +4,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Claude](https://img.shields.io/badge/AI-Claude-orange)](https://www.anthropic.com/claude)
+[![AI providers](https://img.shields.io/badge/AI-OpenAI%20%7C%20Anthropic%20%7C%20Gemini-6b5cff)](#ai-provider-configuration)
 
 [Open the live app](https://lecture-note-ai-nine.vercel.app)
 
@@ -37,7 +37,7 @@ The reader keeps the source page, AI summary, Q&A, and personal notes together i
 | Styling         | Tailwind CSS v4                                                    |
 | Database        | PostgreSQL and Prisma ORM                                          |
 | Authentication  | Auth.js / NextAuth v5 with Google OAuth and JWT sessions           |
-| AI              | Anthropic Claude with streaming, vision, and prompt caching        |
+| AI              | OpenAI, Anthropic, or Gemini with streaming and vision             |
 | Storage         | Cloudflare R2 with browser-to-bucket presigned uploads             |
 | PDF             | react-pdf and pdfjs-dist (legacy build for server-side extraction) |
 | Notes           | BlockNote                                                          |
@@ -56,11 +56,11 @@ The reader keeps the source page, AI summary, Q&A, and personal notes together i
 
 ### Prerequisites
 
-- Node.js 20.9 or later
+- Node.js 22 or later
 - PostgreSQL, such as [Neon](https://neon.tech/) or [Supabase](https://supabase.com/)
 - A [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket
 - Google OAuth credentials from [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-- An [Anthropic API key](https://console.anthropic.com/)
+- An API key from OpenAI, Anthropic, or Google Gemini
 - Stripe credentials if subscription billing is enabled
 
 ### Installation
@@ -80,6 +80,27 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### AI provider configuration
+
+Select a provider in `.env` and provide only that provider's API key:
+
+```env
+# openai | anthropic | gemini
+AI_PROVIDER=openai
+
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.4-mini
+
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=claude-sonnet-4-6
+
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Restart the development server after changing `AI_PROVIDER`. Existing cached
+summaries are regenerated on demand when the provider or model changes.
 
 > `APP_ENCRYPTION_KEY` protects user-supplied API keys with AES-256-GCM. Rotating it makes previously stored keys unreadable, so manage it like a production secret.
 

@@ -11,6 +11,10 @@ import {
   isLikelyImagePage,
   savePageSummary,
 } from "./page_store";
+import {
+  incrementUserUsage,
+  releaseUserUsage,
+} from "./ai_quota_limit";
 
 export type CompiledPage = {
   pageNumber: number;
@@ -31,6 +35,7 @@ export const IMAGE_PLACEHOLDER =
 
 export async function compileNotes(
   documentId: string,
+  userId: string,
 ): Promise<CompiledNotes | null> {
   const document = await prisma.document.findUnique({
     where: { id: documentId },
@@ -63,11 +68,17 @@ export async function compileNotes(
         // stays fast and we don't pollute the cache with a weak text summary.
         placeholder = true;
       } else {
-        summary = await summaryOnePage(
-          page.extractedText,
-          systemPrompt,
-          userPrompt,
-        );
+        const usage = await incrementUserUsage(userId);
+        try {
+          summary = await summaryOnePage(
+            page.extractedText,
+            systemPrompt,
+            userPrompt,
+          );
+        } catch (error) {
+          await releaseUserUsage(userId, usage.month);
+          throw error;
+        }
         const hash = computeSummaryPromptHash({
           systemPrompt: systemPrompt || SUMMARY_SYSTEM_PROMPT,
           userPrompt: userPrompt || "(default)",

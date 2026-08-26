@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { prisma } from "./prisma";
-import { AI_MODEL } from "./ai";
+import { AI_MODEL, AI_PROVIDER } from "./ai";
 
 /**
  * Page-level reads/writes for summaries and the image-based flag.
@@ -25,6 +25,7 @@ export function computeSummaryPromptHash(input: {
   return createHash("sha256")
     .update(
       [
+        AI_PROVIDER,
         AI_MODEL,
         input.systemPrompt,
         input.userPrompt,

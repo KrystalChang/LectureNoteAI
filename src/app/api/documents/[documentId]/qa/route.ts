@@ -6,6 +6,12 @@ import {
 import { ndjsonResponse } from "@/lib/ndjson";
 import { prisma } from "@/lib/prisma";
 import { getUserId, userOwnsDocument } from "@/lib/auth_helpers";
+import {
+  AiQuotaLimitError,
+  aiQuotaLimitResponse,
+  incrementUserUsage,
+  releaseUserUsage,
+} from "@/lib/ai_quota_limit";
 
 type CreateQARequest = {
   pageNumber: number;
@@ -85,38 +91,50 @@ export async function POST(request: Request, { params }: RouteParams) {
     });
   }
 
+  let usage;
+  try {
+    usage = await incrementUserUsage(userId);
+  } catch (error) {
+    if (error instanceof AiQuotaLimitError) {
+      return aiQuotaLimitResponse(error);
+    }
+    throw error;
+  }
+
   // ---- Streaming response ----
   if (wantStream) {
     return ndjsonResponse(async (emit) => {
-      const aiStream = streamAnswerAboutPage({
-        pageText: page.extractedText,
-        selectedText: normalizedSelectedText,
-        question: trimmedQuestion,
-        systemPrompt,
-        userPrompt,
-        image,
-      });
-
       let full = "";
-      for await (const event of aiStream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          full += event.delta.text;
-          emit({ type: "delta", text: event.delta.text });
+
+      try {
+        const aiStream = streamAnswerAboutPage({
+          pageText: page.extractedText,
+          selectedText: normalizedSelectedText,
+          question: trimmedQuestion,
+          systemPrompt,
+          userPrompt,
+          image,
+        });
+
+        for await (const delta of aiStream) {
+          full += delta;
+          emit({ type: "delta", text: delta });
         }
+      } catch (error) {
+        await releaseUserUsage(userId, usage.month);
+        throw error;
       }
 
       const finalAnswer = full.trim() || "無法產生回答";
       const qaEntry = await persist(finalAnswer);
-      emit({ type: "done", qaEntry });
+      emit({ type: "done", qaEntry, usage });
     });
   }
 
   // ---- Non-streaming response ----
+  let answer: string;
   try {
-    const answer = await answerQuestionAboutPage({
+    answer = await answerQuestionAboutPage({
       pageText: page.extractedText,
       selectedText: normalizedSelectedText,
       question: trimmedQuestion,
@@ -124,14 +142,21 @@ export async function POST(request: Request, { params }: RouteParams) {
       userPrompt,
       image,
     });
-    const qaEntry = await persist(answer);
-    return Response.json({ qaEntry });
   } catch (error) {
+    await releaseUserUsage(userId, usage.month);
     console.error("Error creating QA entry:", error);
     return Response.json(
       { error: "Failed to answer question" },
       { status: 500 },
     );
+  }
+
+  try {
+    const qaEntry = await persist(answer);
+    return Response.json({ qaEntry, usage });
+  } catch (error) {
+    console.error("Error saving QA entry:", error);
+    return Response.json({ error: "Failed to save answer" }, { status: 500 });
   }
 }
 

@@ -2,6 +2,12 @@ import { suggestPromptPreferencesFromDocument } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { PromptPreferences } from "@/lib/prompt_preferences";
 import { getUserId } from "@/lib/auth_helpers";
+import {
+  AiQuotaLimitError,
+  aiQuotaLimitResponse,
+  incrementUserUsage,
+  releaseUserUsage,
+} from "@/lib/ai_quota_limit";
 
 type RouteParams = {
   params: Promise<{
@@ -39,10 +45,17 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return Response.json({ error: "Document not found" }, { status: 404 });
     }
 
-    const analysis = await suggestPromptPreferencesFromDocument({
-      documentName: document.originalName,
-      pages: document.pages,
-    });
+    const usage = await incrementUserUsage(userId);
+    let analysis;
+    try {
+      analysis = await suggestPromptPreferencesFromDocument({
+        documentName: document.originalName,
+        pages: document.pages,
+      });
+    } catch (error) {
+      await releaseUserUsage(userId, usage.month);
+      throw error;
+    }
 
     const preferences: Partial<PromptPreferences> = {
       documentFormat: analysis.documentFormat,
@@ -58,8 +71,12 @@ export async function GET(_request: Request, { params }: RouteParams) {
       preferences,
       reason: buildReason(document.originalName, analysis),
       topic: analysis.topic,
+      usage,
     });
   } catch (error) {
+    if (error instanceof AiQuotaLimitError) {
+      return aiQuotaLimitResponse(error);
+    }
     console.error("Error suggesting prompt preferences:", error);
     return Response.json(
       { error: "Failed to suggest prompt settings" },

@@ -24,7 +24,7 @@ model User {
   // App-owned data
   documents       Document[]
   folders         Folder[]
-  usage           UsageCounter[]
+  aiUsage         AiUsage[]
   librarySettings LibrarySettings?
 
   createdAt DateTime @default(now())
@@ -49,6 +49,19 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
+model AiUsage {
+  id     String @id @default(uuid())
+  userId String
+  month  String
+  count  Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([userId])
+  @@map("AIUsage")
+}
+
 model Session {
   id           String   @id @default(uuid())
   sessionToken String   @unique
@@ -64,20 +77,6 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-// Per-user daily usage counter, guards the shared Anthropic API key bill.
-// `date` is a YYYY-MM-DD string in a fixed timezone; one row per user per day.
-model UsageCounter {
-  id     String @id @default(uuid())
-  userId String
-  date   String
-  count  Int    @default(0)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, date])
-  @@index([userId])
 }
 
 model Document {
@@ -128,18 +127,18 @@ model Folder {
 }
 
 model PageContent {
-  id            String  @id @default(uuid())
-  documentId    String
-  pageNumber    Int
-  extractedText String
-  summary       String?
+  id                String  @id @default(uuid())
+  documentId        String
+  pageNumber        Int
+  extractedText     String
+  summary           String?
   // Hash of the prompt (system + user + model + image flag) that produced
   // `summary`. Lets us reuse the cached summary when the prompt is unchanged
   // instead of regenerating on every page view.
   summaryPromptHash String?
   // True when the page has little/no extractable text (image-dominant slide),
   // so the client should send a rendered page image for a vision summary.
-  isImageBased  Boolean @default(false)
+  isImageBased      Boolean @default(false)
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
