@@ -14,8 +14,6 @@ LectureNoteAI turns PDF lecture material into an interactive study environment. 
 
 [![LectureNoteAI demo showing a PDF lecture beside an AI-generated summary and Q&A workspace](public/demo/demo-hero.png)](https://lecture-note-ai-nine.vercel.app)
 
-The reader keeps the source page, AI summary, Q&A, and personal notes together in one workspace. For the complete walkthrough, [watch the demo video on YouTube](https://youtu.be/Cs3rGweGkYo).
-
 ## Features
 
 - **Page-by-page AI summaries** — stream summaries as they are generated and cache them by prompt hash to avoid duplicate requests.
@@ -144,10 +142,6 @@ tests/                          Unit and route tests
 The app can be deployed on [Vercel](https://vercel.com/). Connect the repository, configure every required variable from `.env.example`, and deploy. PDF files upload directly to R2 through presigned URLs instead of passing through a Vercel Function.
 
 Set `NEXT_PUBLIC_SITE_URL` to the public origin when deploying under a different domain. The current hosted instance is [lecture-note-ai-nine.vercel.app](https://lecture-note-ai-nine.vercel.app).
-
-## Related project
-
-LectureNoteAI can be extended with a Model Context Protocol server for additional tools and workflows. See the [MCP Server repository](https://github.com/TrendMicro-Proactive-monitoring-system/MCP-Server).
 
 ## Contributing
 
