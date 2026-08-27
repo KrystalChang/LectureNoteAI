@@ -30,7 +30,7 @@ export const AI_PROVIDER: AiProvider = providerValue;
 const PROVIDER_MODELS: Record<AiProvider, string> = {
   openai: process.env.OPENAI_MODEL || "gpt-5.4-mini",
   anthropic: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
-  gemini: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  gemini: process.env.GEMINI_MODEL || "gemini-3.6-flash",
 };
 
 export const AI_MODEL = PROVIDER_MODELS[AI_PROVIDER];

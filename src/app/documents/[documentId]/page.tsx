@@ -29,7 +29,10 @@ export default async function DocumentPage({ params }: DocumentPageProps) {
         <p className="text-gray-500 mt-2">
           No document found with ID: {documentId}
         </p>
-        <Link href="/" className="text-blue-600 hover:underline mt-4 inline-block">
+        <Link
+          href="/dashboard"
+          className="text-blue-600 hover:underline mt-4 inline-block"
+        >
           ← Back to upload
         </Link>
       </main>

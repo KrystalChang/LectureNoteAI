@@ -72,7 +72,11 @@ export default function DocumentToolbar({
       style={{ background: "var(--surface)", borderColor: "var(--border)" }}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <Link href="/" className="btn btn-subtle h-8 px-2" title="返回">
+        <Link
+          href="/dashboard"
+          className="btn btn-subtle h-8 px-2"
+          title="返回"
+        >
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline">返回</span>
         </Link>

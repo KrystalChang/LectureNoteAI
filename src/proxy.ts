@@ -1,20 +1,15 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-// 不需登入就能看的頁面
-const PUBLIC_PATHS = ["/login"];
+// Landing Page 是唯一不需登入即可瀏覽的頁面。
+const PUBLIC_PATHS = new Set(["/"]);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = PUBLIC_PATHS.has(pathname);
 
-  // 未登入且訪問受保護頁 → 導向 /login
+  // 未登入且訪問受保護頁 → 回到含登入入口的 Landing Page。
   if (!req.auth && !isPublic) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl));
-  }
-
-  // 已登入卻在 /login → 導回首頁
-  if (req.auth && isPublic) {
     return NextResponse.redirect(new URL("/", req.nextUrl));
   }
 

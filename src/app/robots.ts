@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // 使用者私人內容與後端端點不需要被搜尋引擎爬
-      disallow: ["/documents/", "/api/"],
+      disallow: ["/dashboard", "/documents/", "/api/"],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };
